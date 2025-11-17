@@ -1,4 +1,4 @@
-import type { PluginConfig, PluginMetaData, PluginSettings } from '../plugins/types';
+import type { Plugin, PluginConfig, PluginMetaData } from '../plugins/types';
 import { localStorage, STORAGE_KEYS } from './localStorage';
 
 /**
@@ -85,41 +85,44 @@ export class SettingsManager {
      * 플러그인 초기 설정 생성 (처음 등록 시)
      * Storage를 먼저 확인하여 기존 설정이 있으면 유지
      */
-    async initializePlugin(meta: PluginMetaData): Promise<void> {
+    async initializePlugin(plugin: Plugin): Promise<void> {
         // Storage에서 최신 설정 먼저 로드
         await this.loadSettings();
 
         // 이미 Storage에 설정이 있으면 스킵 (사용자가 설정한 값 유지)
-        if (this.settings.plugins[meta.id]) {
-            console.log(`[SettingsManager] Plugin ${meta.id} already configured, keeping existing settings`);
+        if (this.settings.plugins[plugin.meta.id]) {
+            console.log(`[SettingsManager] Plugin ${plugin.meta.id} already configured, keeping existing settings`);
             return;
         }
 
-        console.log(`[SettingsManager] Initializing plugin ${meta.id} with defaults`);
+        console.log(`[SettingsManager] Initializing plugin ${plugin.meta.id} with defaults`);
 
         const config: PluginConfig = {
-            enabled: true, // 기본적으로 활성화
+            enabled: false, // 기본적으로 활성화
             settings: {},
             shortcuts: {},
         };
 
+
         // 기본 설정값 적용
-        if (meta.settingOptions) {
-            meta.settingOptions.forEach((option) => {
+        if (plugin.settingOptions) {
+            plugin.settingOptions.forEach((option) => {
                 config.settings![option.id] = option.defaultValue;
             });
         }
 
         // 기본 단축키 설정
-        if (meta.shortcuts) {
-            meta.shortcuts.forEach((shortcut) => {
+        if (plugin.shortcuts) {
+            plugin.shortcuts.forEach((shortcut) => {
                 config.shortcuts![shortcut.id] = {
                     enabled: shortcut.enabled ?? true,
+                    customKey: shortcut.key,
+                    handler: shortcut.handler
                 };
             });
         }
 
-        this.settings.plugins[meta.id] = config;
+        this.settings.plugins[plugin.meta.id] = config;
         await this.saveSettings();
     }
 
@@ -163,7 +166,7 @@ export class SettingsManager {
     async updatePluginShortcut(
         pluginId: string,
         shortcutId: string,
-        customKey?: { windows: string; mac: string },
+        customKey?: ShortcutKey[],
         enabled?: boolean
     ): Promise<void> {
         if (!this.settings.plugins[pluginId]) {
@@ -175,7 +178,7 @@ export class SettingsManager {
         }
 
         const shortcutConfig = this.settings.plugins[pluginId].shortcuts![shortcutId] || {
-            enabled: true,
+            enabled: true
         };
 
         if (customKey !== undefined) {
@@ -196,13 +199,6 @@ export class SettingsManager {
      */
     getPluginConfig(pluginId: string): PluginConfig | undefined {
         return this.settings.plugins[pluginId];
-    }
-
-    /**
-     * 플러그인 설정값 가져오기
-     */
-    getPluginSettings(pluginId: string): PluginSettings {
-        return this.settings.plugins[pluginId]?.settings || {};
     }
 
     /**
@@ -252,9 +248,9 @@ export class SettingsManager {
     /**
      * 특정 플러그인 설정 초기화
      */
-    async resetPluginSettings(pluginId: string, meta: PluginMetaData): Promise<void> {
-        delete this.settings.plugins[pluginId];
-        await this.initializePlugin(meta);
+    async resetPluginSettings(plugin: Plugin): Promise<void> {
+        delete this.settings.plugins[plugin.meta.id];
+        await this.initializePlugin(plugin);
         this.notifyListeners();
     }
 }

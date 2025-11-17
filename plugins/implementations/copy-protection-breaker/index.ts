@@ -1,6 +1,4 @@
 import type { Plugin } from '@/plugins/types';
-import { ContentScriptContext } from "wxt/utils/content-script-context";
-import {PluginExecuteOptions} from "@/utils/plugin-helper";
 
 export const copyProtectionBreakerPlugin: Plugin = {
     meta: {

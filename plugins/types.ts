@@ -1,16 +1,19 @@
 import type { ContentScriptContext} from "wxt/utils/content-script-context";
 import type { ShortcutKey } from "../utils/shortcut-utils";
 
-/**
- * 단축키 정의
- */
-export interface PluginShortcut {
-    id: string; // 단축키 고유 ID (예: 'toggle-inspector')
-    name: string; // 표시 이름 (예: 'Toggle CSS inspection mode')
-    description: string; // 설명 (예: 'Enable or disable CSS inspection')
-    key: ShortcutKey[]; // 추상화된 단축키 (예: ['Cmd', 'Shift', 'I'])
-    enabled?: boolean; // 단축키 활성화 여부 (기본: true)
-    handler: (event: KeyboardEvent, helper: ContentScriptContext) => void | Promise<void>; // 실행 함수
+export interface Plugin {
+    meta: PluginMetaData;
+
+    // 설정 옵션
+    settingOptions?: PluginSettingOption[];
+
+    executor: PluginExecutor;
+
+    // 실행 시점
+    runAt?: 'document_start' | 'document_end' | 'document_idle';
+
+    // 여러 단축키 지원
+    shortcuts?: PluginShortcut[];
 }
 
 /**
@@ -32,18 +35,14 @@ export interface PluginMetaData {
     id: string;
     name: string;
     description: string;
+    matches: string[];
     drawIcon: (div: HTMLDivElement) => HTMLDivElement;
     category?: 'inspector' | 'performance' | 'design' | 'utility';
     version: string;
     author?: string;
     tier: 'free' | 'pro'; // 플러그인 티어
-
-    // 여러 단축키 지원
-    shortcuts?: PluginShortcut[];
-
-    // 구조화된 설정 옵션들
-    settingOptions?: PluginSettingOption[];
 }
+
 
 /**
  * 플러그인 설정값 (실제 저장되는 값)
@@ -60,35 +59,31 @@ export interface PluginConfig {
     settings?: PluginSettings; // 설정값들
     shortcuts?: {
         [shortcutId: string]: {
-            customKey?: { windows: string; mac: string }; // 사용자 정의 단축키
-            enabled: boolean; // 단축키 활성화 여부
+            customKey?: ShortcutKey[],
+            enabled: boolean, // 단축키 활성화 여부
+            handler: (event: KeyboardEvent, helper: PluginHelpers) => void | Promise<void>
         };
     };
 }
 
-export interface Plugin {
-    meta: PluginMetaData;
+export interface PluginExecutor {
 
-    // 기본 설정값
-    defaultSettings?: PluginSettings;
-
-    // 페이지 로드 시 실행 로직 (선택사항)
     // 구현되어 있으면 페이지 로드 시 자동 실행
-    onActivate?: (ctx: ContentScriptContext) => void | Promise<void>;
+    onActivate? : (ctx: ContentScriptContext) => void | Promise<void>;
 
     // 정리 로직 (선택사항)
-    cleanup?: () => void | Promise<void>;
+    cleanup? : (ctx: ContentScriptContext) => void | Promise<void>;
 
-    // URL 패턴
-    matches: string[];
-
-    // 실행 시점
-    runAt?: 'document_start' | 'document_end' | 'document_idle';
 }
 
-export interface CommandInfo {
-    pluginId: string;
-    name: string;
-    shortcut: string;
-    description: string;
+/**
+ * 단축키 정의
+ */
+export interface PluginShortcut {
+    id: string; // 단축키 고유 ID (예: 'toggle-inspector')
+    name: string; // 표시 이름 (예: 'Toggle CSS inspection mode')
+    description: string; // 설명 (예: 'Enable or disable CSS inspection')
+    key: ShortcutKey[]; // 추상화된 단축키 (예: ['Cmd', 'Shift', 'I'])
+    enabled?: boolean; // 단축키 활성화 여부 (기본: true)
+    handler: (event: KeyboardEvent, helper: PluginHelpers) => void | Promise<void>; // 실행 함수
 }

@@ -19,9 +19,9 @@ export default defineContentScript({
 
     // onActivate가 있는 플러그인 실행
     for (const plugin of plugins) {
-      if (plugin.onActivate) {
+      if (plugin.executor.onActivate) {
         try {
-          await plugin.onActivate(ctx);
+          await plugin.executor.onActivate(ctx);
           console.log(`✅ Plugin activated: ${plugin.meta.name}`);
         } catch (error) {
           console.error(`❌ Failed to activate plugin ${plugin.meta.id}:`, error);

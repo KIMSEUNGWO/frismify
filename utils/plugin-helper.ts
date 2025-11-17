@@ -17,10 +17,11 @@ type DeepReadonly<T> = {
  */
 export interface PluginHelpers {
   /** 현재 설정값 (읽기 전용) */
-  readonly settings: DeepReadonly<PluginSettings>;
   readonly platform: DeepReadonly<Platform>;
   /** 전체 설정 객체 (읽기 전용) */
   readonly config: DeepReadonly<PluginConfig>;
+
+  readonly settings: DeepReadonly<PluginSettings>;
 
   /** 플러그인 ID */
   pluginId: string;
@@ -37,7 +38,7 @@ export interface PluginHelpers {
   isShortcutEnabled(shortcutId: string): boolean;
 
   /** 커스텀 단축키 가져오기 (없으면 기본값) */
-  getShortcutKey(shortcutId: string): { windows: string; mac: string } | null;
+  getShortcutKey(shortcutId: string): ShortcutKey[] | null;
 }
 
 /**
@@ -110,7 +111,7 @@ export function createPluginExecutor(
     const createHelpers = (currentSettings?: PluginSettings): PluginHelpers => ({
       settings: currentSettings || settings,
       platform: platform,
-      config,
+      config: config,
       pluginId,
       ctx,
 

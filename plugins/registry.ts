@@ -78,7 +78,7 @@ class PluginRegistry {
      * 단축키가 있는 플러그인만 반환
      */
     findAllWithHasShortcuts(): Plugin[] {
-        return this.findAll().filter((x) => x.meta.shortcuts && x.meta.shortcuts.length > 0);
+        return this.findAll().filter((x) => x.shortcuts && x.shortcuts.length > 0);
     }
 
     /**
@@ -100,8 +100,8 @@ class PluginRegistry {
         const commands: Record<string, any> = {};
 
         this.findAll().forEach((plugin) => {
-            if (plugin.meta.shortcuts && plugin.meta.shortcuts.length > 0) {
-                plugin.meta.shortcuts.forEach((shortcut) => {
+            if (plugin.shortcuts && plugin.shortcuts.length > 0) {
+                plugin.shortcuts.forEach((shortcut) => {
                     // 구분자를 '__'로 변경하여 파싱 문제 해결
                     const commandName = `${plugin.meta.id}__${shortcut.id}`;
                     const platformKeys = toCommandShortcut(shortcut.key);
@@ -131,19 +131,6 @@ class PluginRegistry {
         const shortcutId = parts[1];
 
         return { pluginId, shortcutId };
-    }
-
-    /**
-     * 플러그인 설정과 함께 가져오기
-     */
-    getPluginWithConfig(pluginId: string): { plugin: Plugin; config: PluginConfig } | null {
-        const plugin = this.plugins.get(pluginId);
-        if (!plugin) return null;
-
-        const config = settingsManager.getPluginConfig(pluginId);
-        if (!config) return null;
-
-        return { plugin, config };
     }
 
     /**
