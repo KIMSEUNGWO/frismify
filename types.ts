@@ -95,7 +95,7 @@ export interface PluginState {
  */
 export interface ShortcutState {
   enabled: boolean;
-  customKeys?: ShortcutKey[]; // 사용자 커스텀 단축키
+  keys?: ShortcutKey[]; // 사용자 커스텀 단축키
 }
 
 /**

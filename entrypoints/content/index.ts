@@ -71,16 +71,16 @@ export default defineContentScript({
           // 3-2. 커스텀 단축키가 있으면 사용, 없으면 기본 단축키 사용
           // Chrome storage에서 배열이 객체로 변환될 수 있으므로 배열로 변환
           let keys = shortcutDef.keys;
-          if (shortcutState?.customKeys) {
-            keys = Array.isArray(shortcutState.customKeys)
-              ? shortcutState.customKeys
-              : Object.values(shortcutState.customKeys);
+          if (shortcutState?.keys) {
+            keys = Array.isArray(shortcutState.keys)
+              ? shortcutState.keys
+              : Object.values(shortcutState.keys);
           }
 
           console.log(`[Content] Testing keys:`, {
             keys,
             isArray: Array.isArray(keys),
-            customKeys: shortcutState?.customKeys,
+            customKeys: shortcutState?.keys,
             defaultKeys: shortcutDef.keys,
           });
 

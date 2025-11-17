@@ -2,7 +2,6 @@ import type { Plugin } from '../../../types';
 import { PluginManager } from '../../../core';
 
 // 전역 상태 관리
-let isActive = false;
 let cleanupFunctions: (() => void)[] = [];
 
 export const copyProtectionBreakerPlugin: Plugin = {
@@ -52,31 +51,16 @@ export const copyProtectionBreakerPlugin: Plugin = {
             description: 'Toggle copy protection breaker on/off',
             keys: ['Cmd', 'Shift', 'Y'],
             handler: async (event, ctx) => {
-                if (!isActive) {
-                    // 활성화
-                    console.log('🔓 Copy Protection Breaker activated!');
-                    isActive = true;
-                    activateProtection(ctx);
+                // 활성화
+                console.log('🔓 Copy Protection Breaker activated!');
+                activateProtection(ctx);
 
-                    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-                    showToastModal({
-                        status: 'activated',
-                        shortcut: isMac ? '⌘⇧C' : 'Ctrl+Shift+C',
-                        features: []
-                    });
-                } else {
-                    // 비활성화
-                    console.log('🔒 Copy Protection Breaker deactivated!');
-                    isActive = false;
-                    deactivateProtection();
-
-                    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-                    showToastModal({
-                        status: 'deactivated',
-                        shortcut: isMac ? '⌘⇧C' : 'Ctrl+Shift+C',
-                        features: []
-                    });
-                }
+                const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+                showToastModal({
+                    status: 'activated',
+                    shortcut: isMac ? '⌘⇧C' : 'Ctrl+Shift+C',
+                    features: []
+                });
             },
         }
     },
@@ -89,16 +73,12 @@ export const copyProtectionBreakerPlugin: Plugin = {
     onActivate: async (ctx) => {
         console.log('✅ Copy Protection Breaker plugin loaded');
         // 자동으로 활성화하지 않고 단축키로만 토글
-        isActive = false;
         cleanupFunctions = [];
     },
 
     onCleanup: () => {
         console.log('🧹 Copy Protection Breaker plugin cleaned up');
-        if (isActive) {
-            deactivateProtection();
-        }
-        isActive = false;
+        deactivateProtection();
         cleanupFunctions = [];
     }
 }

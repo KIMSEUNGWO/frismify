@@ -54,7 +54,7 @@
 
               <!-- 리셋 버튼 -->
               <button
-                v-if="config.shortcuts[String(shortcutId)]?.customKeys"
+                v-if="config.shortcuts[String(shortcutId)]?.keys"
                 class="btn-reset"
                 @click="resetShortcut(plugin.id, String(shortcutId))"
                 title="Reset to default"
@@ -152,7 +152,7 @@ const loadPlugins = async () => {
 
 // 표시할 단축키 키 가져오기
 const getDisplayKey = (shortcutId: string, shortcut: PluginShortcut, config: PluginState): string => {
-  const customKeys = config.shortcuts?.[shortcutId]?.customKeys;
+  const customKeys = config.shortcuts?.[shortcutId]?.keys;
 
   // customKeys가 배열인지 확인 (Chrome storage에서 객체로 변환될 수 있음)
   let keys = shortcut.keys;

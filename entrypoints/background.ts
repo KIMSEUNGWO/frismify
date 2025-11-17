@@ -37,9 +37,20 @@ export default defineBackground(async () => {
   });
 
   // Chrome Commands (단축키) 처리
-  // 참고: Content Script에서도 단축키를 처리하므로 여기서는 주석 처리
   // browser.commands.onCommand.addListener(async (command) => {
-  //   console.log(`⌨️ Command received: ${command}`);
-  //   await manager.handleCommand(command, null as any); // Background에서는 ctx 없음
+  //   console.log(`⌨️ Command received in background: ${command}`);
+  //
+  //   const parsed = manager.parseCommand(command);
+  //   if (!parsed) return;
+  //
+  //   // Content script로 메시지 전송
+  //   const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+  //   if (tabs[0]?.id) {
+  //     browser.tabs.sendMessage(tabs[0].id, {
+  //       type: 'EXECUTE_SHORTCUT',
+  //       pluginId: parsed.pluginId,
+  //       shortcutId: parsed.shortcutId,
+  //     });
+  //   }
   // });
 });

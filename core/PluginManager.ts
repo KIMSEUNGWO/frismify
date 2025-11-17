@@ -113,10 +113,10 @@ export class PluginManager {
     if (!plugin.shortcuts) return {};
 
     const defaults: Record<string, any> = {};
-    for (const [id] of Object.entries(plugin.shortcuts)) {
+    for (const [id, shortcut] of Object.entries(plugin.shortcuts)) {
       defaults[id] = {
         enabled: true,
-        customKeys: undefined, // 커스텀 키 없음
+        keys: shortcut.keys, // 기본 단축키 저장
       };
     }
     return defaults;
@@ -265,8 +265,8 @@ export class PluginManager {
           console.log('[PluginManager] Created new shortcut state');
         }
         // Vue Proxy를 일반 배열로 변환 (Chrome storage 호환성)
-        state.plugins[pluginId].shortcuts[shortcutId].customKeys = Array.from(customKeys);
-        console.log('[PluginManager] Updated customKeys:', state.plugins[pluginId].shortcuts[shortcutId]);
+        state.plugins[pluginId].shortcuts[shortcutId].keys = Array.from(customKeys);
+        console.log('[PluginManager] Updated keys:', state.plugins[pluginId].shortcuts[shortcutId]);
       } else {
         console.error('[PluginManager] Plugin not found in state:', pluginId);
       }
@@ -296,15 +296,20 @@ export class PluginManager {
   }
 
   /**
-   * 단축키 커스텀 키 리셋
+   * 단축키 커스텀 키 리셋 (기본 키로 복원)
    */
   public async resetShortcutKeys(
     pluginId: string,
     shortcutId: string
   ): Promise<void> {
+    const plugin = this.plugins.get(pluginId);
+    if (!plugin?.shortcuts?.[shortcutId]) return;
+
+    const defaultKeys = plugin.shortcuts[shortcutId].keys;
+
     await this.storage.updateState(state => {
-      if (state.plugins[pluginId] && state.plugins[pluginId].shortcuts[shortcutId]) {
-        delete state.plugins[pluginId].shortcuts[shortcutId].customKeys;
+      if (state.plugins[pluginId]?.shortcuts[shortcutId]) {
+        state.plugins[pluginId].shortcuts[shortcutId].keys = defaultKeys;
       }
       return state;
     });
@@ -573,6 +578,3 @@ export class PluginManager {
   }
 }
 
-
-
-export const pluginManager = PluginManager.getInstance();
