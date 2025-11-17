@@ -10,6 +10,7 @@ export interface PluginShortcut {
     description: string; // 설명 (예: 'Enable or disable CSS inspection')
     key: ShortcutKey[]; // 추상화된 단축키 (예: ['Cmd', 'Shift', 'I'])
     enabled?: boolean; // 단축키 활성화 여부 (기본: true)
+    handler: (event: KeyboardEvent, helper: ContentScriptContext) => void | Promise<void>; // 실행 함수
 }
 
 /**
@@ -71,10 +72,11 @@ export interface Plugin {
     // 기본 설정값
     defaultSettings?: PluginSettings;
 
-    // Content script 실행 로직
-    execute: (ctx: ContentScriptContext) => void | Promise<void>;
+    // 페이지 로드 시 실행 로직 (선택사항)
+    // 구현되어 있으면 페이지 로드 시 자동 실행
+    onActivate?: (ctx: ContentScriptContext) => void | Promise<void>;
 
-    // 정리 로직
+    // 정리 로직 (선택사항)
     cleanup?: () => void | Promise<void>;
 
     // URL 패턴

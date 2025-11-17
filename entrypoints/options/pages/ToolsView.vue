@@ -15,10 +15,12 @@
         <div class="plugin-card-header">
           <div class="plugin-info">
             <div ref="iconContainer" class="plugin-icon-container"></div>
-            <div>
-              <h3 class="plugin-name">{{ plugin.meta.name }}</h3>
+            <div class="plugin-title-wrap" :class="{ disabled : !config.enabled }">
+              <div class="plugin-title">
+                <TierTag :tier="plugin.meta.tier"/>
+                <h3 class="plugin-name">{{ plugin.meta.name }}</h3>
+              </div>
               <p class="plugin-description">{{ plugin.meta.description }}</p>
-              <span class="plugin-tier" :class="plugin.meta.tier">{{ plugin.meta.tier }}</span>
             </div>
           </div>
           <ToggleSwitch
@@ -34,7 +36,7 @@
             :key="option.id"
             class="setting-item"
           >
-            <div class="setting-info">
+            <div class="setting-info" :class="{ disabled : option.type !== 'boolean' ? false : !(config.settings?.[option.id] ?? option.defaultValue)}">
               <label class="setting-name">{{ option.name }}</label>
               <p class="setting-description">{{ option.description }}</p>
             </div>
@@ -83,11 +85,13 @@ import { pluginRegistry } from '@/plugins/registry';
 import { settingsManager } from '@/utils/settings-manager';
 import type { AppSettings } from '@/utils/settings-manager';
 import ToggleSwitch from '@/components/ToggleSwitch.vue';
+import TierTag from "@/components/TierTag.vue";
 
 const pluginsWithConfig = ref(pluginRegistry.getAllPluginsWithConfig());
 
 // 설정 변경 감지 및 반영
 const handleSettingsChange = (settings: AppSettings) => {
+  console.log('설정 변경 감지!!');
   pluginsWithConfig.value = pluginRegistry.getAllPluginsWithConfig();
 };
 
@@ -190,40 +194,26 @@ onUnmounted(() => {
 .plugin-name {
   font-size: 18px;
   font-weight: 600;
-  margin: 0 0 4px 0;
-  color: var(--font-color-1, #1a1a1a);
+  color: var(--font-color-1);
 }
 
 .plugin-description {
   font-size: 14px;
-  color: var(--font-color-2, #666);
-  margin: 0 0 8px 0;
-  line-height: 1.5;
+  color: var(--font-color-2);
+  margin-top: 4px;
 }
 
-.plugin-tier {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.plugin-tier.free {
-  background: #10b981;
-  color: white;
-}
-
-.plugin-tier.pro {
-  background: linear-gradient(135deg, #8b5cf6, #ec4899);
-  color: white;
+.plugin-title {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 .plugin-settings {
-  margin-top: 20px;
+  margin-top: 26px;
+  border-top: 1px solid var(--border-color);
   padding-top: 20px;
-  border-top: 1px solid var(--border-color, #e5e7eb);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -270,5 +260,11 @@ onUnmounted(() => {
   outline: none;
   border-color: var(--purple, #8b5cf6);
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.disabled {
+  h1,h2,h3,h4,h5,h6,span,p,pre,label {
+    color: var(--font-disabled);
+  }
 }
 </style>

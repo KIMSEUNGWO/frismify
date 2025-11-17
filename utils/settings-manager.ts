@@ -1,4 +1,5 @@
 import type { PluginConfig, PluginMetaData, PluginSettings } from '../plugins/types';
+import { localStorage, STORAGE_KEYS } from './localStorage';
 
 /**
  * 전체 설정 구조
@@ -44,9 +45,9 @@ export class SettingsManager {
             if (typeof browser === 'undefined' || !browser?.storage) {
                 return;
             }
-            const result = await browser.storage.local.get('appSettings');
-            if (result.appSettings) {
-                this.settings = result.appSettings;
+            const result = await localStorage.getAppSettings();
+            if (result) {
+                this.settings = result;
             }
         } catch (error) {
             console.error('Failed to load settings:', error);
@@ -61,9 +62,9 @@ export class SettingsManager {
         if (typeof browser === 'undefined' || !browser?.storage) {
             return;
         }
-        browser.storage.onChanged.addListener((changes, areaName) => {
-            if (areaName === 'local' && changes.appSettings) {
-                this.settings = changes.appSettings.newValue || { plugins: {} };
+        localStorage.onChanged((changes) => {
+            if (changes[STORAGE_KEYS.APP_SETTINGS]) {
+                this.settings = changes[STORAGE_KEYS.APP_SETTINGS].newValue || { plugins: {} };
                 this.notifyListeners();
             }
         });
@@ -74,11 +75,7 @@ export class SettingsManager {
      */
     private async saveSettings(): Promise<void> {
         try {
-            // 빌드 타임에는 browser API가 없으므로 스킵
-            if (typeof browser === 'undefined' || !browser?.storage) {
-                return;
-            }
-            await browser.storage.local.set({ appSettings: this.settings });
+            await localStorage.setAppSettings(this.settings);
         } catch (error) {
             console.error('Failed to save settings:', error);
         }

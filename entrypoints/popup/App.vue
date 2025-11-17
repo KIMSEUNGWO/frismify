@@ -109,7 +109,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   // 리스너 제거
-  settingsManager.removeChangeListener(handleSettingsChange);
+  // settingsManager.removeChangeListener(handleSettingsChange);
 });
 
 </script>
@@ -184,5 +184,11 @@ main > h3 {
   padding: 40px 20px;
   text-align: center;
   color: #6b7280;
+}
+
+.disabled {
+  h1,h2,h3,h4,h5,h6,span,p,pre,label {
+    color: var(--font-disabled);
+  }
 }
 </style>

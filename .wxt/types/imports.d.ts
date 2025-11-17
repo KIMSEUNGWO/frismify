@@ -4,9 +4,12 @@ declare global {
   const ContentScriptContext: typeof import('wxt/utils/content-script-context').ContentScriptContext
   const EffectScope: typeof import('vue').EffectScope
   const InvalidMatchPattern: typeof import('wxt/utils/match-patterns').InvalidMatchPattern
+  const KEYS: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/localStorage').KEYS
   const MatchPattern: typeof import('wxt/utils/match-patterns').MatchPattern
   const Platform: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform').Platform
+  const STORAGE_KEYS: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/localStorage').STORAGE_KEYS
   const SettingsManager: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/settings-manager').SettingsManager
+  const Storage: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/localStorage').Storage
   const browser: typeof import('wxt/browser').browser
   const computed: typeof import('vue').computed
   const createApp: typeof import('vue').createApp
@@ -41,6 +44,7 @@ declare global {
   const isShallow: typeof import('vue').isShallow
   const isValidShortcut: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils').isValidShortcut
   const isWindows: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform').isWindows
+  const localStorage: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/localStorage').localStorage
   const markRaw: typeof import('vue').markRaw
   const matchesShortcut: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils').matchesShortcut
   const nextTick: typeof import('vue').nextTick
@@ -126,6 +130,9 @@ declare global {
   export type { Component, Slot, Slots, ComponentPublicInstance, ComputedRef, DirectiveBinding, ExtractDefaultPropTypes, ExtractPropTypes, ExtractPublicPropTypes, InjectionKey, PropType, Ref, ShallowRef, MaybeRef, MaybeRefOrGetter, VNode, WritableComputedRef } from 'vue'
   import('vue')
   // @ts-ignore
+  export type { Storage, StorageData } from '/Users/tmd8635/Desktop/project/prismify/utils/localStorage'
+  import('/Users/tmd8635/Desktop/project/prismify/utils/localStorage')
+  // @ts-ignore
   export type { Platform, PlatformType } from '/Users/tmd8635/Desktop/project/prismify/utils/platform'
   import('/Users/tmd8635/Desktop/project/prismify/utils/platform')
   // @ts-ignore
@@ -145,9 +152,12 @@ declare module 'vue' {
     readonly ContentScriptContext: UnwrapRef<typeof import('wxt/utils/content-script-context')['ContentScriptContext']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly InvalidMatchPattern: UnwrapRef<typeof import('wxt/utils/match-patterns')['InvalidMatchPattern']>
+    readonly KEYS: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/localStorage')['KEYS']>
     readonly MatchPattern: UnwrapRef<typeof import('wxt/utils/match-patterns')['MatchPattern']>
     readonly Platform: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform')['Platform']>
+    readonly STORAGE_KEYS: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/localStorage')['STORAGE_KEYS']>
     readonly SettingsManager: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/settings-manager')['SettingsManager']>
+    readonly Storage: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/localStorage')['Storage']>
     readonly browser: UnwrapRef<typeof import('wxt/browser')['browser']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>
     readonly createApp: UnwrapRef<typeof import('vue')['createApp']>
@@ -182,6 +192,7 @@ declare module 'vue' {
     readonly isShallow: UnwrapRef<typeof import('vue')['isShallow']>
     readonly isValidShortcut: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils')['isValidShortcut']>
     readonly isWindows: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform')['isWindows']>
+    readonly localStorage: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/localStorage')['localStorage']>
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
     readonly matchesShortcut: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils')['matchesShortcut']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>

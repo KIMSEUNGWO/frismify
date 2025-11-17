@@ -4,7 +4,10 @@
       <div class="plugin-header">
         <div ref="iconContainer" class="plugin-icon"></div>
         <div class="plugin-title">
-          <h3 class="plugin-name">{{ plugin.meta.name }}</h3>
+          <div class="plugin-title-wrap">
+            <TierTag :tier="plugin.meta.tier"/>
+            <h3 class="plugin-name">{{ plugin.meta.name }}</h3>
+          </div>
           <p class="plugin-description">{{ plugin.meta.description }}</p>
         </div>
       </div>
@@ -22,6 +25,7 @@
 <script setup lang="ts">
 import type { Plugin } from '@/plugins/types';
 import ToggleSwitch from '@/components/ToggleSwitch.vue';
+import TierTag from "@/components/TierTag.vue";
 
 const iconContainer = ref<HTMLDivElement>();
 
@@ -68,7 +72,7 @@ onMounted(() => {
 
 .plugin-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   margin-bottom: 4px;
 }
@@ -86,5 +90,11 @@ onMounted(() => {
 
 .plugin-description {
   font-size: 12px;
+}
+
+.plugin-title-wrap {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 2px;
 }
 </style>

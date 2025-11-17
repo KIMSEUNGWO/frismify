@@ -1,5 +1,5 @@
-import type { Plugin, PluginMetaData } from '../types';
-import { createPluginExecutor, type PluginHelpers } from '../../utils/plugin-helper';
+import type { Plugin, PluginMetaData } from '../../types';
+import { createPluginExecutor, type PluginHelpers } from '../../../utils/plugin-helper';
 
 /**
  * CSS Spy 플러그인 예제
@@ -25,7 +25,7 @@ const meta: PluginMetaData = {
   version: '1.0.0',
   author: 'Prismify Team',
   category: 'inspector',
-  tier: 'free',
+  tier: 'pro',
 
   // 아이콘 그리기 함수
   drawIcon: (div: HTMLDivElement) => {
@@ -211,7 +211,7 @@ const cssSpyPluginManual: Plugin = {
 
   execute: async (ctx) => {
     // ❌ 이런 보일러플레이트 코드를 매번 작성해야 함
-    const { settingsManager } = await import('../../utils/settings-manager');
+    const { settingsManager } = await import('../../../utils/settings-manager');
     const config = settingsManager.getPluginConfig('css-spy');
 
     if (!config?.enabled) {

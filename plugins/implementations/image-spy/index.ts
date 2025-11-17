@@ -94,7 +94,7 @@ function draw(div: HTMLDivElement) {
 interface Asset {
     type: 'img' | 'svg' | 'background';
     url: string;
-    element: HTMLElement;
+    element: Element;
     width: number;
     height: number;
     filename: string;

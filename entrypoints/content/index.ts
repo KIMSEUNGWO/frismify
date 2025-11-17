@@ -1,6 +1,8 @@
 import { pluginRegistry } from '@/plugins/registry';
 import type { Plugin } from '@/plugins/types';
-import '@/plugins/implementations';  // 플러그인 등록
+import '@/plugins';
+import { settingsManager } from '@/utils/settings-manager';
+import { matchesShortcut } from '@/utils/shortcut-utils';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -8,82 +10,86 @@ export default defineContentScript({
   async main(ctx) {
     console.log('🎯 Content script loaded');
 
-    const activePlugins = new Map<string, Plugin>();
+    // SettingsManager 초기화
+    await settingsManager.initialize();
 
-    // 플러그인 활성화
-    const activatePlugin = async (plugin: Plugin) => {
-      if (activePlugins.has(plugin.meta.id)) {
-        console.log(`⚠️ Plugin ${plugin.meta.name} already active`);
-        return;
-      }
-
-      try {
-        await plugin.execute(ctx);
-        activePlugins.set(plugin.meta.id, plugin);
-        console.log(`✅ Plugin activated: ${plugin.meta.name}`);
-      } catch (error) {
-        console.error(`❌ Failed to activate ${plugin.meta.name}:`, error);
-      }
-    }
-
-    // 플러그인 비활성화
-    const deactivatePlugin = async (pluginId: string) => {
-      const plugin = activePlugins.get(pluginId);
-      if (!plugin) {
-        console.log(`⚠️ Plugin ${pluginId} not active`);
-        return;
-      }
-
-      try {
-        await plugin.cleanup?.();
-        activePlugins.delete(pluginId);
-        console.log(`❌ Plugin deactivated: ${plugin.meta.name}`);
-      } catch (error) {
-        console.error(`❌ Failed to deactivate ${plugin.meta.name}:`, error);
-      }
-    }
-
-    // 초기 플러그인 로드
+    // 모든 플러그인 로드
     const plugins = pluginRegistry.findAll();
     console.log(`📦 Found ${plugins.length} plugins`);
 
+    // onActivate가 있는 플러그인 실행
     for (const plugin of plugins) {
-      const result = await browser.storage.local.get(`local:plugin:${plugin.meta.id}`);
-      const enabled = result[`local:plugin:${plugin.meta.id}`] || false;
-
-      if (enabled) {
-        await activatePlugin(plugin);
+      if (plugin.onActivate) {
+        try {
+          await plugin.onActivate(ctx);
+          console.log(`✅ Plugin activated: ${plugin.meta.name}`);
+        } catch (error) {
+          console.error(`❌ Failed to activate plugin ${plugin.meta.id}:`, error);
+        }
       }
     }
 
-    // 메시지 리스너: 런타임에 플러그인 토글
-    browser.runtime.onMessage.addListener((message) => {
-      if (message.type === 'UPDATE_PLUGIN') {
-        const { pluginId, enabled } = message;
-        const plugin = pluginRegistry.findById(pluginId);
-
-        if (!plugin) {
-          console.error(`❌ Plugin ${pluginId} not found`);
-          return;
+    // 전역 단축키 핸들러
+    const handleShortcut = async (event: KeyboardEvent) => {
+      for (const plugin of plugins) {
+        // 1. 플러그인이 enabled 상태인지 확인
+        if (!settingsManager.isPluginEnabled(plugin.meta.id)) {
+          continue;
         }
 
-        if (enabled) {
-          activatePlugin(plugin);
-        } else {
-          deactivatePlugin(pluginId)
+        // 2. 플러그인에 단축키가 있는지 확인
+        if (!plugin.meta.shortcuts || plugin.meta.shortcuts.length === 0) {
+          continue;
+        }
+
+        // 3. 각 단축키 확인
+        for (const shortcut of plugin.meta.shortcuts) {
+          // 3-1. 단축키가 enabled 상태인지 확인
+          const shortcutConfig = settingsManager.getPluginConfig(plugin.meta.id)?.shortcuts?.[shortcut.id];
+          if (shortcutConfig?.enabled === false) {
+            continue;
+          }
+
+          // 3-2. 커스텀 단축키가 있으면 사용, 없으면 기본 단축키 사용
+          const keys = shortcut.key; // TODO: 커스텀 단축키 처리
+
+          // 3-3. 단축키 매칭 확인
+          if (matchesShortcut(event, keys)) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            console.log(`⌨️ Shortcut triggered: ${plugin.meta.name} - ${shortcut.name}`);
+
+            try {
+              await shortcut.handler(event, ctx);
+            } catch (error) {
+              console.error(`❌ Shortcut handler error (${plugin.meta.id}.${shortcut.id}):`, error);
+            }
+
+            return; // 첫 번째 매칭된 단축키만 실행
+          }
         }
       }
-    })
+    };
 
-    // Context 무효화 시 모든 플러그인 정리
+    // 전역 keydown 이벤트 리스너 등록
+    document.addEventListener('keydown', handleShortcut, true);
+
+    // Context 무효화 시 정리
     ctx.onInvalidated(() => {
-      console.log('🧹 Context invalidated, cleaning up plugins');
-      for (const [pluginId] of activePlugins) {
-        deactivatePlugin(pluginId);
+      console.log('🧹 Context invalidated, cleaning up');
+      document.removeEventListener('keydown', handleShortcut, true);
+
+      // 모든 플러그인 cleanup 호출
+      for (const plugin of plugins) {
+        if (plugin.cleanup) {
+          try {
+            plugin.cleanup();
+          } catch (error) {
+            console.error(`❌ Cleanup error (${plugin.meta.id}):`, error);
+          }
+        }
       }
     });
-
   },
 });
-
-// contextmenu event -> 오른쪽 클릭 해제

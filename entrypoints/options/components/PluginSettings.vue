@@ -62,7 +62,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, computed } from 'vue';
-import { storage } from 'wxt/utils/storage';
+import { localStorage } from '@/utils/localStorage';
 import { pluginRegistry } from '@/plugins/registry';
 
 const props = defineProps<{
@@ -83,16 +83,16 @@ const loadSettings = async () => {
   if (!plugin.value) return;
 
   // 활성화 상태 로드
-  enabled.value = await storage.getItem(`local:plugin:${props.pluginId}`) ?? false;
+  enabled.value = await localStorage.getPluginEnabled(props.pluginId);
 
   // 설정 로드
-  const saved = await storage.getItem(`local:plugin:${props.pluginId}:settings`);
+  const saved = await localStorage.getPluginSettings(props.pluginId);
 
   settings.value = saved || plugin.value.defaultSettings || {};
 };
 
 const togglePlugin = async () => {
-  await storage.setItem(`local:plugin:${props.pluginId}`, enabled.value);
+  await localStorage.setPluginEnabled(props.pluginId, enabled.value);
 
   // 백그라운드로 메시지 전송
   await browser.runtime.sendMessage({
@@ -103,10 +103,7 @@ const togglePlugin = async () => {
 };
 
 const saveSettings = async () => {
-  await storage.setItem(
-      `local:plugin:${props.pluginId}:settings`,
-      settings.value
-  );
+  await localStorage.setPluginSettings(props.pluginId, settings.value);
 
   alert('설정이 저장되었습니다!');
 };

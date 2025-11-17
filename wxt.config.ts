@@ -1,4 +1,5 @@
 import { defineConfig } from 'wxt';
+import {pluginRegistry} from "./plugins/registry";
 
 export default defineConfig({
   manifest: {
@@ -11,7 +12,6 @@ export default defineConfig({
       'tabs',
     ],
     host_permissions: ['<all_urls>'], // 모든 사이트에서 작동
-
   },
   modules: ['@wxt-dev/module-vue'],
   hooks: {
@@ -20,13 +20,10 @@ export default defineConfig({
       if (manifest.options_ui) {
         manifest.options_ui.open_in_tab = true;
       }
-
       // 플러그인 레지스트리에서 동적으로 단축키 생성
-      const { initializePlugins } = await import('./plugins/implementations/index');
-      const registry = initializePlugins();
-
+      console.log('플러그인 레지스트리에서 동적으로 단축키 생성로직 시작')
       // 레지스트리에서 commands 가져오기
-      const commands = registry.getCommands();
+      const commands = pluginRegistry.getCommands();
 
       console.log('🔧 Auto-generating keyboard shortcuts...');
       console.log(`📋 Total shortcuts: ${Object.keys(commands).length}`);
