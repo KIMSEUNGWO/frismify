@@ -9,22 +9,22 @@
     <div class="shortcuts-list">
       <div
         v-for="{ plugin, config } in pluginsWithShortcuts"
-        :key="plugin.meta.id"
+        :key="plugin.id"
         class="plugin-shortcut-section"
       >
         <div class="section-header">
           <div class="plugin-title-row">
             <div ref="iconContainer" class="plugin-icon-small"></div>
-            <h2 class="plugin-name">{{ plugin.meta.name }}</h2>
-            <span class="plugin-version">v{{ plugin.meta.version }}</span>
+            <h2 class="plugin-name">{{ plugin.name }}</h2>
+            <span class="plugin-version">v{{ plugin.version }}</span>
           </div>
         </div>
 
         <!-- 단축키 목록 -->
         <div class="shortcuts-grid">
           <div
-            v-for="shortcut in plugin.meta.shortcuts"
-            :key="shortcut.id"
+            v-for="(shortcut, shortcutId) in plugin.shortcuts"
+            :key="String(shortcutId)"
             class="shortcut-item"
           >
             <div class="shortcut-info">
@@ -35,30 +35,28 @@
             <div class="shortcut-controls">
               <!-- 단축키 표시 -->
               <div class="shortcut-key">
-                {{
-                  getShortcutKey(config, shortcut.id) || formatShortcutForDisplay(shortcut.key)
-                }}
+                {{ getDisplayKey(String(shortcutId), shortcut, config) }}
               </div>
 
               <!-- 활성화/비활성화 토글 -->
               <ToggleSwitch
-                :model-value="isShortcutEnabled(config, shortcut.id)"
-                @update:model-value="toggleShortcut(plugin.meta.id, shortcut.id, $event)"
+                :model-value="config.shortcuts[String(shortcutId)]?.enabled ?? true"
+                @update:model-value="toggleShortcut(plugin.id, String(shortcutId), $event)"
               />
 
               <!-- 커스터마이징 버튼 -->
               <button
                 class="btn-customize"
-                @click="openCustomizeDialog(plugin.meta.id, shortcut)"
+                @click="openCustomizeDialog(plugin.id, String(shortcutId), shortcut)"
               >
                 Customize
               </button>
 
               <!-- 리셋 버튼 -->
               <button
-                v-if="hasCustomShortcut(config, shortcut.id)"
+                v-if="config.shortcuts[String(shortcutId)]?.customKeys"
                 class="btn-reset"
-                @click="resetShortcut(plugin.meta.id, shortcut.id)"
+                @click="resetShortcut(plugin.id, String(shortcutId))"
                 title="Reset to default"
               >
                 ↻
@@ -85,10 +83,10 @@
             <label>Shortcut</label>
             <input
               type="text"
-              :value="isMac ? customizeDialog.customKey.mac : customizeDialog.customKey.windows"
+              :value="customizeDialog.displayKey"
               :placeholder="isMac ? 'e.g., ⌘⇧K' : 'e.g., Ctrl+Shift+K'"
               class="key-input"
-              @keydown.prevent="captureKey(isMac ? 'mac' : 'windows', $event)"
+              @keydown.prevent="captureKey"
               readonly
             />
           </div>
@@ -106,77 +104,94 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { pluginRegistry } from '@/plugins/registry';
-import { settingsManager } from '@/utils/settings-manager';
-import type { AppSettings } from '@/utils/settings-manager';
-import type { PluginShortcut, PluginConfig } from '@/plugins/types';
+import { ref, onMounted, onUnmounted } from 'vue';
+import { PluginManager, ShortcutManager } from '@/core';
+import { registerPlugins } from '@/plugins';
+import type { AppState, Plugin, PluginState, PluginShortcut, ShortcutKey } from '@/types';
 import ToggleSwitch from '@/components/ToggleSwitch.vue';
-import { formatShortcutForDisplay, toMacShortcutText, toWindowsShortcut } from '@/utils/shortcut-utils';
-import { isMac } from '@/utils/platform';
+import { Platform } from '@/utils/platform';
 
+const manager = PluginManager.getInstance();
+const shortcutManager = ShortcutManager.getInstance();
+const platform = Platform.getInstance();
+const isMac = platform.isMac;
 
-const pluginsWithShortcuts = ref(
-  pluginRegistry.getAllPluginsWithConfig().filter(({ plugin }) =>
-    plugin.meta.shortcuts && plugin.meta.shortcuts.length > 0
-  )
-);
+const pluginsWithShortcuts = ref<Array<{ plugin: Plugin; config: PluginState }>>([]);
 
 // 커스터마이징 다이얼로그 상태
 const customizeDialog = ref<{
   isOpen: boolean;
   pluginId: string | null;
+  shortcutId: string | null;
   shortcut: PluginShortcut | null;
-  customKey: { windows: string; mac: string };
+  capturedKeys: ShortcutKey[];
+  displayKey: string;
 }>({
   isOpen: false,
   pluginId: null,
+  shortcutId: null,
   shortcut: null,
-  customKey: { windows: '', mac: '' },
+  capturedKeys: [],
+  displayKey: '',
 });
 
+// 플러그인 로드
+const loadPlugins = async () => {
+  const plugins = manager.getPlugins().filter(p => p.shortcuts);
+  const result = [];
+
+  for (const plugin of plugins) {
+    const config = await manager.getPluginState(plugin.id);
+    if (config) {
+      result.push({ plugin, config });
+    }
+  }
+
+  pluginsWithShortcuts.value = result;
+};
+
+// 표시할 단축키 키 가져오기
+const getDisplayKey = (shortcutId: string, shortcut: PluginShortcut, config: PluginState): string => {
+  const customKeys = config.shortcuts?.[shortcutId]?.customKeys;
+
+  // customKeys가 배열인지 확인 (Chrome storage에서 객체로 변환될 수 있음)
+  let keys = shortcut.keys;
+  if (customKeys) {
+    if (Array.isArray(customKeys) && customKeys.length > 0) {
+      keys = customKeys;
+    } else if (typeof customKeys === 'object') {
+      // 객체를 배열로 변환
+      const converted = Object.values(customKeys);
+      if (converted.length > 0) {
+        keys = converted;
+      }
+    }
+  }
+
+  return shortcutManager.format(keys);
+};
+
 // 설정 변경 감지
-const handleSettingsChange = (settings: AppSettings) => {
-  pluginsWithShortcuts.value = pluginRegistry.getAllPluginsWithConfig().filter(({ plugin }) =>
-    plugin.meta.shortcuts && plugin.meta.shortcuts.length > 0
-  );
-};
-
-// 단축키 활성화 여부 확인
-const isShortcutEnabled = (config: PluginConfig, shortcutId: string): boolean => {
-  return config.shortcuts?.[shortcutId]?.enabled ?? true;
-};
-
-// 커스텀 단축키 가져오기
-const getShortcutKey = (config: PluginConfig, shortcutId: string): string | null => {
-  const customKey = config.shortcuts?.[shortcutId]?.customKey;
-  if (!customKey) return null;
-  return isMac() ? customKey.mac : customKey.windows;
-};
-
-// 커스텀 단축키 존재 여부
-const hasCustomShortcut = (config: PluginConfig, shortcutId: string): boolean => {
-  return !!config.shortcuts?.[shortcutId]?.customKey;
+const handleSettingsChange = async (state: AppState) => {
+  console.log('[ShortcutsView] 설정 변경 감지!!', state);
+  await loadPlugins();
 };
 
 // 단축키 활성화/비활성화
 const toggleShortcut = async (pluginId: string, shortcutId: string, enabled: boolean) => {
-  await settingsManager.updatePluginShortcut(pluginId, shortcutId, undefined, enabled);
+  await manager.toggleShortcut(pluginId, shortcutId, enabled);
+  await loadPlugins();
 };
 
 // 커스터마이징 다이얼로그 열기
-const openCustomizeDialog = (pluginId: string, shortcut: PluginShortcut) => {
-  const config = settingsManager.getPluginConfig(pluginId);
-  const customKey = config?.shortcuts?.[shortcut.id]?.customKey;
-
+const openCustomizeDialog = (pluginId: string, shortcutId: string, shortcut: PluginShortcut) => {
   customizeDialog.value = {
     isOpen: true,
     pluginId,
+    shortcutId,
     shortcut,
-    customKey: customKey || {
-      windows: toWindowsShortcut(shortcut.key),
-      mac: toMacShortcutText(shortcut.key),
-    },
+    capturedKeys: shortcut.keys,
+    displayKey: shortcutManager.format(shortcut.keys),
   };
 };
 
@@ -185,95 +200,83 @@ const closeCustomizeDialog = () => {
   customizeDialog.value = {
     isOpen: false,
     pluginId: null,
+    shortcutId: null,
     shortcut: null,
-    customKey: { windows: '', mac: '' },
+    capturedKeys: [],
+    displayKey: '',
   };
 };
 
 // 키 조합 캡처
-const captureKey = (platform: 'windows' | 'mac', event: KeyboardEvent) => {
-  const parts: string[] = [];
+const captureKey = (event: KeyboardEvent) => {
+  const keys: ShortcutKey[] = [];
 
-  // Chrome Commands API 호환 텍스트 형식으로 저장
-  if (platform === 'mac') {
-    if (event.metaKey) parts.push('Command');
-    if (event.ctrlKey) parts.push('MacCtrl');
-    if (event.altKey) parts.push('Alt');
-    if (event.shiftKey) parts.push('Shift');
-  } else {
-    if (event.ctrlKey) parts.push('Ctrl');
-    if (event.altKey) parts.push('Alt');
-    if (event.shiftKey) parts.push('Shift');
-  }
+  // Modifier keys
+  if (event.metaKey || event.ctrlKey) keys.push('Cmd');
+  if (event.shiftKey) keys.push('Shift');
+  if (event.altKey) keys.push('Alt');
 
-  // 실제 키 추가 (modifier 키가 아닌 경우)
+  // Regular key
   if (!['Control', 'Alt', 'Shift', 'Meta'].includes(event.key)) {
-    parts.push(event.key.toUpperCase());
+    keys.push(event.key.toUpperCase());
   }
 
-  if (parts.length > 0) {
-    // 저장은 텍스트 형식으로, 표시는 formatShortcutForDisplay가 알아서 처리
-    customizeDialog.value.customKey[platform] = parts.join('+');
+  if (keys.length > 1) {
+    customizeDialog.value.capturedKeys = keys;
+    customizeDialog.value.displayKey = shortcutManager.format(keys);
   }
 };
 
 // 커스텀 단축키 저장
 const saveCustomShortcut = async () => {
-  if (!customizeDialog.value.pluginId || !customizeDialog.value.shortcut) return;
+  console.log('[ShortcutsView] saveCustomShortcut called:', {
+    pluginId: customizeDialog.value.pluginId,
+    shortcutId: customizeDialog.value.shortcutId,
+    capturedKeys: customizeDialog.value.capturedKeys,
+  });
 
-  // 현재 OS가 아닌 다른 OS의 단축키는 기존 값 유지
-  const config = settingsManager.getPluginConfig(customizeDialog.value.pluginId);
-  const existingCustomKey = config?.shortcuts?.[customizeDialog.value.shortcut.id]?.customKey;
+  if (!customizeDialog.value.pluginId || !customizeDialog.value.shortcutId) {
+    console.error('[ShortcutsView] Missing pluginId or shortcutId');
+    return;
+  }
 
-  const newCustomKey = {
-    windows: isMac()
-      ? (existingCustomKey?.windows || toWindowsShortcut(customizeDialog.value.shortcut.key))
-      : customizeDialog.value.customKey.windows,
-    mac: isMac()
-      ? customizeDialog.value.customKey.mac
-      : (existingCustomKey?.mac || toMacShortcutText(customizeDialog.value.shortcut.key)),
-  };
-
-  await settingsManager.updatePluginShortcut(
+  await manager.updateShortcutKeys(
     customizeDialog.value.pluginId,
-    customizeDialog.value.shortcut.id,
-    newCustomKey,
-    undefined
+    customizeDialog.value.shortcutId,
+    customizeDialog.value.capturedKeys
   );
 
+  console.log('[ShortcutsView] updateShortcutKeys completed, reloading plugins...');
+  await loadPlugins();
   closeCustomizeDialog();
 };
 
 // 단축키 리셋
 const resetShortcut = async (pluginId: string, shortcutId: string) => {
-  await settingsManager.updatePluginShortcut(pluginId, shortcutId, undefined, true);
-
-  // customKey를 undefined로 설정하기 위해 config 직접 수정
-  const config = settingsManager.getPluginConfig(pluginId);
-  if (config?.shortcuts?.[shortcutId]) {
-    delete config.shortcuts[shortcutId].customKey;
-  }
+  await manager.resetShortcutKeys(pluginId, shortcutId);
+  await loadPlugins();
 };
 
 onMounted(async () => {
-  await settingsManager.initialize();
-  settingsManager.addChangeListener(handleSettingsChange);
+  // 플러그인 등록 (Options 컨텍스트에서)
+  await registerPlugins();
 
-  pluginsWithShortcuts.value = pluginRegistry.getAllPluginsWithConfig().filter(({ plugin }) =>
-    plugin.meta.shortcuts && plugin.meta.shortcuts.length > 0
-  );
+  await loadPlugins();
+  manager.addListener(handleSettingsChange);
 
   // 아이콘 그리기
-  pluginsWithShortcuts.value.forEach(({ plugin }, index) => {
-    const containers = document.querySelectorAll('.plugin-icon-small');
-    if (containers[index]) {
-      plugin.meta.drawIcon(containers[index] as HTMLDivElement);
-    }
-  });
+  setTimeout(() => {
+    pluginsWithShortcuts.value.forEach(({ plugin }, index) => {
+      const containers = document.querySelectorAll('.plugin-icon-small');
+      if (containers[index] && plugin.icon) {
+        plugin.icon(containers[index] as HTMLDivElement);
+      }
+    });
+  }, 100);
 });
 
 onUnmounted(() => {
-  settingsManager.removeChangeListener(handleSettingsChange);
+  manager.removeListener(handleSettingsChange);
 });
 </script>
 

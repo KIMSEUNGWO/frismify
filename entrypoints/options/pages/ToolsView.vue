@@ -9,7 +9,7 @@
     <div class="plugins-grid">
       <div
         v-for="{ plugin, config } in pluginsWithConfig"
-        :key="plugin.meta.id"
+        :key="plugin.id"
         class="plugin-card"
       >
         <div class="plugin-card-header">
@@ -17,55 +17,55 @@
             <div ref="iconContainer" class="plugin-icon-container"></div>
             <div class="plugin-title-wrap" :class="{ disabled : !config.enabled }">
               <div class="plugin-title">
-                <TierTag :tier="plugin.meta.tier"/>
-                <h3 class="plugin-name">{{ plugin.meta.name }}</h3>
+                <TierTag :tier="plugin.tier"/>
+                <h3 class="plugin-name">{{ plugin.name }}</h3>
               </div>
-              <p class="plugin-description">{{ plugin.meta.description }}</p>
+              <p class="plugin-description">{{ plugin.description }}</p>
             </div>
           </div>
           <ToggleSwitch
             :model-value="config.enabled"
-            @update:model-value="togglePlugin(plugin.meta.id, $event)"
+            @update:model-value="togglePlugin(plugin.id, $event)"
           />
         </div>
 
         <!-- 설정 옵션들 -->
-        <div v-if="config.enabled && plugin.meta.settingOptions" class="plugin-settings">
+        <div v-if="config.enabled && plugin.settings" class="plugin-settings">
           <div
-            v-for="option in plugin.meta.settingOptions"
-            :key="option.id"
+            v-for="(setting, settingId) in plugin.settings"
+            :key="String(settingId)"
             class="setting-item"
           >
-            <div class="setting-info" :class="{ disabled : option.type !== 'boolean' ? false : !(config.settings?.[option.id] ?? option.defaultValue)}">
-              <label class="setting-name">{{ option.name }}</label>
-              <p class="setting-description">{{ option.description }}</p>
+            <div class="setting-info" :class="{ disabled : setting.type !== 'boolean' ? false : !(config.settings?.[settingId] ?? setting.defaultValue)}">
+              <label class="setting-name">{{ setting.label }}</label>
+              <p class="setting-description">{{ setting.description }}</p>
             </div>
 
             <!-- Boolean 타입 -->
             <ToggleSwitch
-              v-if="option.type === 'boolean'"
-              :model-value="config.settings?.[option.id] ?? option.defaultValue"
-              @update:model-value="updateSetting(plugin.meta.id, option.id, $event)"
+              v-if="setting.type === 'boolean'"
+              :model-value="config.settings?.[String(settingId)] ?? setting.defaultValue"
+              @update:model-value="updateSetting(plugin.id, String(settingId), $event)"
             />
 
             <!-- String/Number 타입 -->
             <input
-              v-else-if="option.type === 'string' || option.type === 'number'"
-              :type="option.type === 'number' ? 'number' : 'text'"
-              :value="config.settings?.[option.id] ?? option.defaultValue"
-              @input="updateSetting(plugin.meta.id, option.id, ($event.target as HTMLInputElement).value)"
+              v-else-if="setting.type === 'string' || setting.type === 'number'"
+              :type="setting.type === 'number' ? 'number' : 'text'"
+              :value="config.settings?.[String(settingId)] ?? setting.defaultValue"
+              @input="updateSetting(plugin.id, String(settingId), ($event.target as HTMLInputElement).value)"
               class="setting-input"
             />
 
             <!-- Select 타입 -->
             <select
-              v-else-if="option.type === 'select'"
-              :value="config.settings?.[option.id] ?? option.defaultValue"
-              @change="updateSetting(plugin.meta.id, option.id, ($event.target as HTMLSelectElement).value)"
+              v-else-if="setting.type === 'select'"
+              :value="config.settings?.[String(settingId)] ?? setting.defaultValue"
+              @change="updateSetting(plugin.id, String(settingId), ($event.target as HTMLSelectElement).value)"
               class="setting-select"
             >
               <option
-                v-for="opt in option.options"
+                v-for="opt in setting.options"
                 :key="opt.value"
                 :value="opt.value"
               >
@@ -81,52 +81,72 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { pluginRegistry } from '@/plugins/registry';
-import { settingsManager } from '@/utils/settings-manager';
-import type { AppSettings } from '@/utils/settings-manager';
+import { PluginManager } from '@/core';
+import { registerPlugins } from '@/plugins';
+import type { AppState } from '@/types';
 import ToggleSwitch from '@/components/ToggleSwitch.vue';
 import TierTag from "@/components/TierTag.vue";
 
-const pluginsWithConfig = ref(pluginRegistry.getAllPluginsWithConfig());
+const manager = PluginManager.getInstance();
+const pluginsWithConfig = ref<Array<{ plugin: any; config: any }>>([]);
+
+// 플러그인과 설정 로드
+const loadPlugins = async () => {
+  const plugins = manager.getPlugins();
+  const result = [];
+
+  for (const plugin of plugins) {
+    const config = await manager.getPluginState(plugin.id);
+    if (config) {
+      result.push({ plugin, config });
+    }
+  }
+
+  pluginsWithConfig.value = result;
+};
 
 // 설정 변경 감지 및 반영
-const handleSettingsChange = (settings: AppSettings) => {
+const handleSettingsChange = async (state: AppState) => {
   console.log('설정 변경 감지!!');
-  pluginsWithConfig.value = pluginRegistry.getAllPluginsWithConfig();
+  await loadPlugins();
 };
 
 // 플러그인 활성화/비활성화
 const togglePlugin = async (pluginId: string, enabled: boolean) => {
-  await settingsManager.setPluginEnabled(pluginId, enabled);
+  if (enabled) {
+    await manager.enablePlugin(pluginId);
+  } else {
+    await manager.disablePlugin(pluginId);
+  }
 };
 
 // 설정값 업데이트
 const updateSetting = async (pluginId: string, settingId: string, value: any) => {
-  await settingsManager.updatePluginSettings(pluginId, settingId, value);
+  await manager.updateSetting(pluginId, settingId, value);
 };
 
 onMounted(async () => {
-  // 설정 매니저 초기화
-  await settingsManager.initialize();
-
-  // 설정 변경 리스너 등록
-  settingsManager.addChangeListener(handleSettingsChange);
+  // 플러그인 등록 (Options 컨텍스트에서)
+  await registerPlugins();
 
   // 초기 데이터 로드
-  pluginsWithConfig.value = pluginRegistry.getAllPluginsWithConfig();
+  await loadPlugins();
+
+  // 설정 변경 리스너 등록
+  manager.addListener(handleSettingsChange);
 
   // 아이콘 그리기
   pluginsWithConfig.value.forEach(({ plugin }, index) => {
     const containers = document.querySelectorAll('.plugin-icon-container');
-    if (containers[index]) {
-      plugin.meta.drawIcon(containers[index] as HTMLDivElement);
+    if (containers[index] && plugin.icon) {
+      plugin.icon(containers[index] as HTMLDivElement);
     }
   });
 });
 
 onUnmounted(() => {
   // 리스너 제거
-  settingsManager.removeChangeListener(handleSettingsChange);
+  manager.removeListener(handleSettingsChange);
 });
 </script>
 

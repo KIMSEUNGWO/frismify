@@ -4,18 +4,13 @@ declare global {
   const ContentScriptContext: typeof import('wxt/utils/content-script-context').ContentScriptContext
   const EffectScope: typeof import('vue').EffectScope
   const InvalidMatchPattern: typeof import('wxt/utils/match-patterns').InvalidMatchPattern
-  const KEYS: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/localStorage').KEYS
   const MatchPattern: typeof import('wxt/utils/match-patterns').MatchPattern
-  const Platform: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform').Platform
-  const STORAGE_KEYS: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/localStorage').STORAGE_KEYS
-  const SettingsManager: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/settings-manager').SettingsManager
-  const Storage: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/localStorage').Storage
+  const Platform: typeof import('C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform').Platform
   const browser: typeof import('wxt/browser').browser
   const computed: typeof import('vue').computed
   const createApp: typeof import('vue').createApp
   const createIframeUi: typeof import('wxt/utils/content-script-ui/iframe').createIframeUi
   const createIntegratedUi: typeof import('wxt/utils/content-script-ui/integrated').createIntegratedUi
-  const createPluginExecutor: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/plugin-helper').createPluginExecutor
   const createShadowRootUi: typeof import('wxt/utils/content-script-ui/shadow-root').createShadowRootUi
   const customRef: typeof import('vue').customRef
   const defineAppConfig: typeof import('wxt/utils/define-app-config').defineAppConfig
@@ -27,26 +22,21 @@ declare global {
   const defineWxtPlugin: typeof import('wxt/utils/define-wxt-plugin').defineWxtPlugin
   const effectScope: typeof import('vue').effectScope
   const fakeBrowser: typeof import('wxt/testing').fakeBrowser
-  const formatShortcutForDisplay: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils').formatShortcutForDisplay
   const getCurrentInstance: typeof import('vue').getCurrentInstance
   const getCurrentScope: typeof import('vue').getCurrentScope
   const getCurrentWatcher: typeof import('vue').getCurrentWatcher
   const h: typeof import('vue').h
   const inject: typeof import('vue').inject
   const injectScript: typeof import('wxt/utils/inject-script').injectScript
-  const isLinux: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform').isLinux
-  const isMac: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform').isMac
-  const isMacPlatform: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils').isMacPlatform
+  const isLinux: typeof import('C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform').isLinux
+  const isMac: typeof import('C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform').isMac
   const isProxy: typeof import('vue').isProxy
   const isReactive: typeof import('vue').isReactive
   const isReadonly: typeof import('vue').isReadonly
   const isRef: typeof import('vue').isRef
   const isShallow: typeof import('vue').isShallow
-  const isValidShortcut: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils').isValidShortcut
-  const isWindows: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform').isWindows
-  const localStorage: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/localStorage').localStorage
+  const isWindows: typeof import('C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform').isWindows
   const markRaw: typeof import('vue').markRaw
-  const matchesShortcut: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils').matchesShortcut
   const nextTick: typeof import('vue').nextTick
   const onActivated: typeof import('vue').onActivated
   const onBeforeMount: typeof import('vue').onBeforeMount
@@ -62,26 +52,20 @@ declare global {
   const onUnmounted: typeof import('vue').onUnmounted
   const onUpdated: typeof import('vue').onUpdated
   const onWatcherCleanup: typeof import('vue').onWatcherCleanup
-  const platform: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform').platform
+  const platform: typeof import('C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform').platform
   const provide: typeof import('vue').provide
   const reactive: typeof import('vue').reactive
   const readonly: typeof import('vue').readonly
   const ref: typeof import('vue').ref
   const resolveComponent: typeof import('vue').resolveComponent
-  const settingsManager: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/settings-manager').settingsManager
   const shallowReactive: typeof import('vue').shallowReactive
   const shallowReadonly: typeof import('vue').shallowReadonly
   const shallowRef: typeof import('vue').shallowRef
   const storage: typeof import('wxt/utils/storage').storage
-  const toCommandShortcut: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils').toCommandShortcut
-  const toMacShortcut: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils').toMacShortcut
-  const toMacShortcutText: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils').toMacShortcutText
-  const toPlatformShortcut: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils').toPlatformShortcut
   const toRaw: typeof import('vue').toRaw
   const toRef: typeof import('vue').toRef
   const toRefs: typeof import('vue').toRefs
   const toValue: typeof import('vue').toValue
-  const toWindowsShortcut: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils').toWindowsShortcut
   const triggerRef: typeof import('vue').triggerRef
   const unref: typeof import('vue').unref
   const useAppConfig: typeof import('wxt/utils/app-config').useAppConfig
@@ -130,20 +114,8 @@ declare global {
   export type { Component, Slot, Slots, ComponentPublicInstance, ComputedRef, DirectiveBinding, ExtractDefaultPropTypes, ExtractPropTypes, ExtractPublicPropTypes, InjectionKey, PropType, Ref, ShallowRef, MaybeRef, MaybeRefOrGetter, VNode, WritableComputedRef } from 'vue'
   import('vue')
   // @ts-ignore
-  export type { Storage, StorageData } from '/Users/tmd8635/Desktop/project/prismify/utils/localStorage'
-  import('/Users/tmd8635/Desktop/project/prismify/utils/localStorage')
-  // @ts-ignore
-  export type { Platform, PlatformType } from '/Users/tmd8635/Desktop/project/prismify/utils/platform'
-  import('/Users/tmd8635/Desktop/project/prismify/utils/platform')
-  // @ts-ignore
-  export type { PluginHelpers, PluginExecuteOptions } from '/Users/tmd8635/Desktop/project/prismify/utils/plugin-helper'
-  import('/Users/tmd8635/Desktop/project/prismify/utils/plugin-helper')
-  // @ts-ignore
-  export type { SettingsManager, AppSettings } from '/Users/tmd8635/Desktop/project/prismify/utils/settings-manager'
-  import('/Users/tmd8635/Desktop/project/prismify/utils/settings-manager')
-  // @ts-ignore
-  export type { ShortcutKey } from '/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils'
-  import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils')
+  export type { Platform, PlatformType } from 'C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform'
+  import('C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform')
 }
 // for vue template auto import
 import { UnwrapRef } from 'vue'
@@ -152,18 +124,13 @@ declare module 'vue' {
     readonly ContentScriptContext: UnwrapRef<typeof import('wxt/utils/content-script-context')['ContentScriptContext']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly InvalidMatchPattern: UnwrapRef<typeof import('wxt/utils/match-patterns')['InvalidMatchPattern']>
-    readonly KEYS: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/localStorage')['KEYS']>
     readonly MatchPattern: UnwrapRef<typeof import('wxt/utils/match-patterns')['MatchPattern']>
-    readonly Platform: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform')['Platform']>
-    readonly STORAGE_KEYS: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/localStorage')['STORAGE_KEYS']>
-    readonly SettingsManager: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/settings-manager')['SettingsManager']>
-    readonly Storage: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/localStorage')['Storage']>
+    readonly Platform: UnwrapRef<typeof import('C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform')['Platform']>
     readonly browser: UnwrapRef<typeof import('wxt/browser')['browser']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>
     readonly createApp: UnwrapRef<typeof import('vue')['createApp']>
     readonly createIframeUi: UnwrapRef<typeof import('wxt/utils/content-script-ui/iframe')['createIframeUi']>
     readonly createIntegratedUi: UnwrapRef<typeof import('wxt/utils/content-script-ui/integrated')['createIntegratedUi']>
-    readonly createPluginExecutor: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/plugin-helper')['createPluginExecutor']>
     readonly createShadowRootUi: UnwrapRef<typeof import('wxt/utils/content-script-ui/shadow-root')['createShadowRootUi']>
     readonly customRef: UnwrapRef<typeof import('vue')['customRef']>
     readonly defineAppConfig: UnwrapRef<typeof import('wxt/utils/define-app-config')['defineAppConfig']>
@@ -175,26 +142,21 @@ declare module 'vue' {
     readonly defineWxtPlugin: UnwrapRef<typeof import('wxt/utils/define-wxt-plugin')['defineWxtPlugin']>
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
     readonly fakeBrowser: UnwrapRef<typeof import('wxt/testing')['fakeBrowser']>
-    readonly formatShortcutForDisplay: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils')['formatShortcutForDisplay']>
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
     readonly getCurrentScope: UnwrapRef<typeof import('vue')['getCurrentScope']>
     readonly getCurrentWatcher: UnwrapRef<typeof import('vue')['getCurrentWatcher']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectScript: UnwrapRef<typeof import('wxt/utils/inject-script')['injectScript']>
-    readonly isLinux: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform')['isLinux']>
-    readonly isMac: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform')['isMac']>
-    readonly isMacPlatform: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils')['isMacPlatform']>
+    readonly isLinux: UnwrapRef<typeof import('C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform')['isLinux']>
+    readonly isMac: UnwrapRef<typeof import('C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform')['isMac']>
     readonly isProxy: UnwrapRef<typeof import('vue')['isProxy']>
     readonly isReactive: UnwrapRef<typeof import('vue')['isReactive']>
     readonly isReadonly: UnwrapRef<typeof import('vue')['isReadonly']>
     readonly isRef: UnwrapRef<typeof import('vue')['isRef']>
     readonly isShallow: UnwrapRef<typeof import('vue')['isShallow']>
-    readonly isValidShortcut: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils')['isValidShortcut']>
-    readonly isWindows: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform')['isWindows']>
-    readonly localStorage: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/localStorage')['localStorage']>
+    readonly isWindows: UnwrapRef<typeof import('C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform')['isWindows']>
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
-    readonly matchesShortcut: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils')['matchesShortcut']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
     readonly onActivated: UnwrapRef<typeof import('vue')['onActivated']>
     readonly onBeforeMount: UnwrapRef<typeof import('vue')['onBeforeMount']>
@@ -210,26 +172,20 @@ declare module 'vue' {
     readonly onUnmounted: UnwrapRef<typeof import('vue')['onUnmounted']>
     readonly onUpdated: UnwrapRef<typeof import('vue')['onUpdated']>
     readonly onWatcherCleanup: UnwrapRef<typeof import('vue')['onWatcherCleanup']>
-    readonly platform: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform')['platform']>
+    readonly platform: UnwrapRef<typeof import('C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform')['platform']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
     readonly reactive: UnwrapRef<typeof import('vue')['reactive']>
     readonly readonly: UnwrapRef<typeof import('vue')['readonly']>
     readonly ref: UnwrapRef<typeof import('vue')['ref']>
     readonly resolveComponent: UnwrapRef<typeof import('vue')['resolveComponent']>
-    readonly settingsManager: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/settings-manager')['settingsManager']>
     readonly shallowReactive: UnwrapRef<typeof import('vue')['shallowReactive']>
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
     readonly storage: UnwrapRef<typeof import('wxt/utils/storage')['storage']>
-    readonly toCommandShortcut: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils')['toCommandShortcut']>
-    readonly toMacShortcut: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils')['toMacShortcut']>
-    readonly toMacShortcutText: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils')['toMacShortcutText']>
-    readonly toPlatformShortcut: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils')['toPlatformShortcut']>
     readonly toRaw: UnwrapRef<typeof import('vue')['toRaw']>
     readonly toRef: UnwrapRef<typeof import('vue')['toRef']>
     readonly toRefs: UnwrapRef<typeof import('vue')['toRefs']>
     readonly toValue: UnwrapRef<typeof import('vue')['toValue']>
-    readonly toWindowsShortcut: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/shortcut-utils')['toWindowsShortcut']>
     readonly triggerRef: UnwrapRef<typeof import('vue')['triggerRef']>
     readonly unref: UnwrapRef<typeof import('vue')['unref']>
     readonly useAppConfig: UnwrapRef<typeof import('wxt/utils/app-config')['useAppConfig']>

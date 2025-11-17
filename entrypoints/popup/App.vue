@@ -14,9 +14,9 @@
       <div class="plugin-list">
         <PluginCard
             v-for="plugin in filteredPlugins"
-            :key="plugin.meta.id"
+            :key="plugin.id"
             :plugin="plugin"
-            :enabled="pluginStates[plugin.meta.id] || false"
+            :enabled="pluginStates[plugin.id] || false"
             @toggle="togglePlugin"
         />
       </div>
@@ -32,19 +32,16 @@
 
 <script lang="ts" setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import type { Plugin } from '@/plugins/types';
-import { pluginRegistry } from "@/plugins/registry";
-import { settingsManager } from '@/utils/settings-manager';
-import type { AppSettings } from '@/utils/settings-manager';
+import type { Plugin, AppState } from '@/types';
+import { PluginManager } from '@/core';
+import { registerPlugins } from '@/plugins';
 import { browser } from 'wxt/browser';
 import PluginCard from "@/entrypoints/popup/components/PluginCard.vue";
 
+const manager = PluginManager.getInstance();
 const loading = ref(true);
 const plugins = ref<Plugin[]>([]);
 const pluginStates = ref<Record<string, boolean>>({});
-
-// 카테고리 목록
-const categories = computed(() => pluginRegistry.getCategories());
 
 // 필터링된 플러그인
 const filteredPlugins = computed(() =>{
@@ -52,12 +49,12 @@ const filteredPlugins = computed(() =>{
   return result;
 });
 
-// 플러그인 상태 로드 (settingsManager 사용)
+// 플러그인 상태 로드
 const loadPluginStates = async () => {
   const states: Record<string, boolean> = {};
 
   for (const plugin of plugins.value) {
-    states[plugin.meta.id] = settingsManager.isPluginEnabled(plugin.meta.id);
+    states[plugin.id] = await manager.isEnabled(plugin.id);
   }
 
   pluginStates.value = states;
@@ -65,41 +62,35 @@ const loadPluginStates = async () => {
 };
 
 // 설정 변경 감지
-const handleSettingsChange = (settings: AppSettings) => {
+const handleSettingsChange = async (state: AppState) => {
   // 모든 플러그인 상태 업데이트
-  plugins.value.forEach((plugin) => {
-    pluginStates.value[plugin.meta.id] = settingsManager.isPluginEnabled(plugin.meta.id);
-  });
+  for (const plugin of plugins.value) {
+    pluginStates.value[plugin.id] = await manager.isEnabled(plugin.id);
+  }
 };
 
 // 플러그인 토글
 const togglePlugin = async (pluginId: string) => {
-  const newState = !pluginStates.value[pluginId];
-
-  // settingsManager로 저장 (Options와 동일한 storage 사용)
-  await settingsManager.setPluginEnabled(pluginId, newState);
-
-  // 백그라운드로 메시지 전송
+  // Background로 메시지 전송 (Background가 토글 수행)
   await browser.runtime.sendMessage({
     type: 'TOGGLE_PLUGIN',
     pluginId,
-    enabled: newState,
   });
 
-  // 상태는 settingsManager의 change listener가 자동으로 업데이트
+  // Storage 변경은 listener를 통해 자동으로 반영됨
 }
 
 const openSettings = () => browser.runtime.openOptionsPage();
 
 onMounted(async () => {
-  // settingsManager 초기화
-  await settingsManager.initialize();
+  // 플러그인 등록 (Popup 컨텍스트에서)
+  await registerPlugins();
 
   // 설정 변경 리스너 등록
-  settingsManager.addChangeListener(handleSettingsChange);
+  manager.addListener(handleSettingsChange);
 
   // 플러그인 목록 가져오기
-  plugins.value = pluginRegistry.findAll();
+  plugins.value = manager.getPlugins();
 
   // 플러그인 상태 로드
   await loadPluginStates();
@@ -109,7 +100,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   // 리스너 제거
-  // settingsManager.removeChangeListener(handleSettingsChange);
+  manager.removeListener(handleSettingsChange);
 });
 
 </script>

@@ -4,384 +4,561 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is **Prismify**, a browser extension built with WXT and Vue 3. The product name means "프론트엔드 개발자를 위한 올인원 툴킷" (Frontend Dev Toolkit). The extension uses a **plugin architecture** where developer tools are implemented as modular plugins that can be enabled/disabled individually and controlled via keyboard shortcuts.
-
-The name "Prismify" combines "Prism" (viewing web pages through multiple perspectives like a prism refracts light) with "-ify" (to make/transform).
+**Prismify** (프론트엔드 개발자를 위한 올인원 툴킷) is a browser extension built with WXT and Vue 3. It provides a plugin-based architecture where developer tools are implemented as modular plugins that can be enabled/disabled and controlled via keyboard shortcuts.
 
 ## Development Commands
 
-### Running the Extension
 ```bash
+# Development
 npm run dev              # Chrome development mode with hot reload
 npm run dev:firefox      # Firefox development mode
-```
 
-### Building
-```bash
+# Production
 npm run build            # Production build for Chrome
 npm run build:firefox    # Production build for Firefox
 npm run zip              # Create distributable zip for Chrome
 npm run zip:firefox      # Create distributable zip for Firefox
-```
 
-### Type Checking
-```bash
+# Type checking
 npm run compile          # Run TypeScript compiler without emitting files
 ```
 
-## Architecture
+## Architecture Overview
 
-### Core Design Principle: Abstraction
+### Core Design Principle: Simplicity & Encapsulation
 
-The most important architectural principle is **abstraction**. All plugins follow a standardized interface defined in `plugins/types.ts`. This enables:
-- Consistent plugin behavior across the extension
-- Easy addition/removal of plugins without modifying core code
-- Future plugin marketplace where third-party developers can contribute
-- Rapid development of new features
+The architecture follows these principles:
 
-### Plugin System
+1. **Facade Pattern**: Single entry point (`PluginManager`) for all plugin operations
+2. **Singleton Pattern**: Consistent instances across all contexts (Background, Content, Popup, Options)
+3. **Encapsulation**: Minimal public API, internal implementation hidden
+4. **Single Responsibility**: Each module does one thing well
+5. **Type Safety**: Full TypeScript coverage
 
-This extension uses a **centralized plugin registry** pattern. All plugins must be registered through the `PluginRegistry` singleton to be available in the extension.
+### Project Structure
 
-#### Core Plugin Files
+```
+frismify/
+├── core/                    # Core architecture (DO NOT MODIFY unless refactoring)
+│   ├── PluginManager.ts    # Facade for all plugin operations
+│   ├── ShortcutManager.ts  # Keyboard shortcut handling
+│   ├── StorageManager.ts   # browser.storage.local wrapper
+│   └── index.ts            # Public exports
+│
+├── plugins/                 # Plugin system
+│   ├── implementations/     # Individual plugin implementations
+│   │   └── example/        # Example plugin (reference implementation)
+│   └── index.ts            # Plugin registration
+│
+├── entrypoints/            # WXT entrypoints (convention-based)
+│   ├── background.ts       # Service worker
+│   ├── content/index.ts    # Content script
+│   ├── popup/              # Extension popup UI (Vue)
+│   └── options/            # Options page (Vue + Router)
+│
+├── utils/                  # Utilities
+│   └── platform.ts         # OS detection (Mac/Windows/Linux)
+│
+├── types.ts                # Global type definitions
+└── wxt.config.ts           # WXT configuration
+```
 
-- **`plugins/types.ts`**: TypeScript interfaces for plugins
-  - `Plugin`: Main plugin interface
-  - `PluginMetaData`: Plugin metadata (id, name, description, icon, shortcuts, settings)
-  - `PluginConfig`: Stored configuration (enabled state, settings values, shortcut customizations)
-  - `PluginShortcut`: Shortcut definition with platform-specific keys
-  - `PluginSettingOption`: Setting schema (type, default, options)
+## Core Modules
 
-- **`plugins/registry.ts`**: The `PluginRegistry` singleton
-  - Manages all plugin registration and lookup
-  - Generates Chrome Commands API manifest from plugin shortcuts
-  - Provides filtering methods (by category, tier, enabled state)
-  - Parses command names to extract pluginId and shortcutId (uses `__` delimiter)
+### PluginManager (Facade)
 
-- **`utils/settings-manager.ts`**: The `SettingsManager` singleton
-  - Handles plugin state persistence using `browser.storage.local`
-  - Stores plugin enabled state, settings values, and shortcut customizations
-  - Provides reactive listeners for settings changes across extension contexts
-  - Initializes plugin settings on first registration
-
-- **`utils/plugin-helper.ts`**: Developer utilities for plugin authors
-  - `createPluginExecutor()`: Abstracts common plugin logic (settings loading, change detection, shortcut handling)
-  - `PluginHelpers`: Interface providing read-only settings access, platform info, and helper methods
-  - Provides access to global `platform` singleton for OS detection
-
-- **`utils/localStorage.ts`**: Type-safe storage wrapper
-  - Singleton wrapper around `browser.storage.local`
-  - Centralized storage key management via `STORAGE_KEYS` constant
-  - Provides type-safe methods: `get()`, `set()`, `remove()`, `getMultiple()`, `setMultiple()`
-  - Helper methods: `getPluginEnabled()`, `setPluginEnabled()`, `getAppSettings()`, `setAppSettings()`
-
-- **`utils/platform.ts`**: Platform detection singleton
-  - `Platform` class: Singleton for OS detection and metadata
-  - Provides `platform.isMac`, `platform.isWindows`, `platform.isLinux`, `platform.type`, `platform.name`
-  - Used globally across the extension for platform-specific behavior
-
-- **`utils/shortcut-utils.ts`**: Keyboard shortcut utilities
-  - Abstracts shortcuts using `ShortcutKey[]` format (e.g., `['Cmd', 'Shift', 'P']`)
-  - Converts to platform-specific formats: Mac symbols (`⌘⇧P`) or Windows text (`Ctrl + Shift + P`)
-  - `formatShortcutForDisplay()`: Display shortcuts with platform-appropriate formatting
-  - `toCommandShortcut()`: Convert to Chrome Commands API format
-  - `matchesShortcut()`: Match KeyboardEvent against shortcut arrays
-
-- **`plugins/implementations/index.ts`**: Plugin implementations directory
-  - Contains all plugin implementations in subdirectories
-  - Each plugin exports its implementation from `index.ts`
-  - Exports array of all plugins via `plugins` constant
-
-- **`plugins/index.ts`**: Plugin registration central point
-  - Imports all plugins from `plugins/implementations`
-  - Calls `pluginRegistry.register()` for each plugin
-  - Initializes plugin settings via `settingsManager.initializePlugin()`
-  - Main entry point for plugin system
-
-#### Creating a New Plugin
-
-1. Create a new plugin file in `plugins/implementations/` (e.g., `my-plugin/index.ts`)
-2. Define plugin metadata and use `createPluginExecutor` helper for cleaner code:
+**Single source of truth for all plugin operations.**
 
 ```typescript
-import type { Plugin, PluginMetaData } from '@/plugins/types';
-import { createPluginExecutor } from '@/utils/plugin-helper';
+import { PluginManager } from '@/core';
 
-const meta: PluginMetaData = {
-  id: 'my-plugin',
-  name: 'My Plugin',
-  description: 'Description here',
-  drawIcon: (div) => {
-    div.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-    div.innerHTML = '<svg>...</svg>';
-    return div;
-  },
-  category: 'inspector' | 'performance' | 'design' | 'utility',
-  version: '0.0.1',
-  tier: 'free' | 'pro',
-  shortcuts: [
-    {
-      id: 'toggle',
-      name: 'Toggle Plugin',
-      description: 'Enable or disable the plugin',
-      key: ['Cmd', 'Shift', 'P'],  // Abstracted shortcut format
-      enabled: true
-    }
-  ],
-  settingOptions: [
-    {
-      id: 'option1',
-      name: 'Option 1',
-      description: 'Description',
-      type: 'boolean',
-      defaultValue: true
-    }
-  ]
-};
+const manager = PluginManager.getInstance();
+
+// Plugin registration
+await manager.register(myPlugin);
+
+// Plugin state
+await manager.togglePlugin('plugin-id');
+await manager.enablePlugin('plugin-id');
+await manager.disablePlugin('plugin-id');
+const isEnabled = await manager.isEnabled('plugin-id');
+
+// Plugin queries
+const plugins = manager.getPlugins();
+const plugin = manager.getPlugin('plugin-id');
+const enabled = await manager.getEnabledPlugins();
+
+// Settings
+const settings = await manager.getSettings('plugin-id');
+await manager.updateSetting('plugin-id', 'key', value);
+
+// Lifecycle
+await manager.activate('plugin-id', ctx);
+await manager.cleanup('plugin-id');
+await manager.cleanupAll();
+
+// Shortcuts
+const commands = manager.getCommands(); // For manifest.json
+const parsed = manager.parseCommand('plugin-id__shortcut-id');
+
+// State listeners
+manager.addListener((state) => console.log('State changed:', state));
+```
+
+**Never access internal modules directly. Always use PluginManager.**
+
+### ShortcutManager
+
+Handles keyboard shortcut logic.
+
+```typescript
+import { ShortcutManager } from '@/core';
+
+const shortcut = ShortcutManager.getInstance();
+
+// Match keyboard events
+if (shortcut.matches(event, ['Cmd', 'Shift', 'P'])) {
+  // Handle shortcut
+}
+
+// Format for display
+const formatted = shortcut.format(['Cmd', 'Shift', 'P']);
+// Mac:     ⌘⇧P
+// Windows: Ctrl + Shift + P
+
+// Generate Chrome Commands API format
+const command = shortcut.toCommand(['Cmd', 'Shift', 'P']);
+// { windows: 'Ctrl+Shift+P', mac: 'Command+Shift+P' }
+```
+
+### StorageManager
+
+Wraps `browser.storage.local` with type safety.
+
+```typescript
+import { StorageManager } from '@/core';
+
+const storage = StorageManager.getInstance();
+
+// Get/set state
+const state = await storage.getState();
+await storage.setState(state);
+
+// Update state functionally
+await storage.updateState(state => {
+  state.plugins['my-plugin'].enabled = true;
+  return state;
+});
+
+// Listen to changes
+storage.addListener((newState) => {
+  console.log('Storage changed:', newState);
+});
+```
+
+**Note**: You should rarely use StorageManager directly. Use PluginManager instead.
+
+## Plugin Development
+
+### Creating a New Plugin
+
+1. Create directory in `plugins/implementations/`
+2. Create `index.ts` with plugin definition
+3. Register in `plugins/index.ts`
+
+**Example:**
+
+```typescript
+// plugins/implementations/my-plugin/index.ts
+
+import type { Plugin } from '@/types';
 
 export const myPlugin: Plugin = {
-  meta,
-  matches: ['<all_urls>'],
-  runAt: 'document_idle',
+  // === Metadata ===
+  id: 'my-plugin',
+  name: 'My Plugin',
+  description: 'Plugin description',
+  category: 'inspector' | 'performance' | 'design' | 'utility',
+  version: '1.0.0',
+  tier: 'free' | 'pro',
 
-  // Use createPluginExecutor to handle common logic automatically
-  execute: createPluginExecutor('my-plugin', {
-    onActivate: (helpers) => {
-      // Access settings: helpers.settings.option1
-      // Your plugin logic here
+  // Icon render function
+  icon: (container) => {
+    container.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    container.innerHTML = '<svg>...</svg>';
+  },
+
+  // === Execution ===
+  matches: ['<all_urls>'],  // Optional, default: ['<all_urls>']
+  runAt: 'document_idle',   // Optional, default: 'document_idle'
+
+  // === Settings Schema ===
+  settings: {
+    enabled: {
+      type: 'boolean',
+      label: 'Enable feature',
+      description: 'Description here',
+      defaultValue: true,
     },
-    onSettingsChange: (helpers) => {
-      // React to settings changes
+    color: {
+      type: 'string',
+      label: 'Color',
+      defaultValue: '#FF0000',
     },
-    onCleanup: () => {
-      // Cleanup logic
-    }
-  })
+    count: {
+      type: 'number',
+      label: 'Count',
+      defaultValue: 10,
+    },
+    mode: {
+      type: 'select',
+      label: 'Mode',
+      defaultValue: 'auto',
+      options: [
+        { label: 'Auto', value: 'auto' },
+        { label: 'Manual', value: 'manual' },
+      ],
+    },
+  },
+
+  // === Shortcuts ===
+  shortcuts: {
+    toggle: {
+      name: 'Toggle Plugin',
+      description: 'Toggle plugin on/off',
+      keys: ['Cmd', 'Shift', 'P'],
+      handler: async (event, ctx) => {
+        // Shortcut logic here
+      },
+    },
+  },
+
+  // === Lifecycle ===
+  onActivate: async (ctx) => {
+    // Plugin activation logic
+    const element = document.createElement('div');
+    element.id = 'my-plugin-element';
+    document.body.appendChild(element);
+  },
+
+  onCleanup: () => {
+    // Cleanup logic
+    document.getElementById('my-plugin-element')?.remove();
+  },
 };
 ```
 
-3. Add the plugin to the export array in `plugins/implementations/index.ts`:
 ```typescript
-import { myPlugin } from './my-plugin';
+// plugins/index.ts
 
-export const plugins = [
-  cssSpyPlugin,
-  imageSpyPlugin,
-  myPlugin,  // Add your plugin here
-  // ... other plugins
-];
+import { PluginManager } from '@/core';
+import { myPlugin } from './implementations/my-plugin';
+
+export async function registerPlugins(): Promise<void> {
+  const manager = PluginManager.getInstance();
+
+  await manager.register(myPlugin);
+  // Register additional plugins...
+
+  console.log(`[Plugins] ${manager.getPluginCount()} plugins registered`);
+}
 ```
 
-The plugin will be automatically registered and initialized when imported in `plugins/index.ts`.
+### Plugin Best Practices
 
-**See `plugins/implementations/css-spy.example.ts` for a complete reference implementation.**
+1. **Keep plugins simple**: One plugin = one feature
+2. **Always provide cleanup**: Prevent memory leaks
+3. **Use settings for configuration**: Don't hardcode values
+4. **Test across platforms**: Mac and Windows have different shortcuts
+5. **Follow naming convention**: Use kebab-case for IDs
+6. **Provide clear descriptions**: Help users understand what the plugin does
+7. **Use semantic versioning**: 1.0.0 format
 
-### WXT Framework Structure
+### Accessing Settings in Plugins
 
-WXT uses a **convention-based file structure** where files in the `entrypoints/` directory define different parts of the extension:
-
-#### Background Script (`entrypoints/background.ts`)
-- Service worker that initializes plugins via `initializePlugins()`
-- Listens to keyboard shortcuts via `browser.commands.onCommand`
-- Toggles plugin state in storage (`local:plugin:{pluginId}`)
-- Broadcasts `UPDATE_PLUGIN` messages to all content scripts
-- Shows browser notifications on plugin toggle
-- Handles `TOGGLE_PLUGIN` messages from popup/options
-
-**Important**: The background script parses command names using `__` as delimiter (e.g., `css-spy__toggle-inspector`)
-
-#### Content Scripts (`entrypoints/content/index.ts`)
-- Main content script that runs on all pages (`<all_urls>`)
-- Uses `ActivePlugins` class (defined in `entrypoints/content/types.ts`) to manage plugin lifecycle
-- Maintains `activePlugins` Map to track currently running plugins with their cleanup functions
-- Loads and activates/deactivates plugins based on their enabled state
-- Listens for `UPDATE_PLUGIN` messages from background script
-- Calls `plugin.execute(ctx)` on activation and stores cleanup callback
-- Manages plugin lifecycle using `ContentScriptContext`
-- Cleans up all plugins when context is invalidated
-
-#### Popup (`entrypoints/popup/`)
-Quick access UI for toggling plugins:
-- `App.vue` - Main popup component
-- `components/PluginCard.vue` - Individual plugin toggle card
-- Sends `TOGGLE_PLUGIN` messages to background script
-
-#### Options Page (`entrypoints/options/`)
-Full settings page with Vue Router:
-- `App.vue` - Main options app with sidebar navigation
-- `router/index.ts` - Vue Router configuration
-- `pages/DashboardView.vue` - Usage statistics dashboard
-- `pages/ToolsView.vue` - Plugin management and settings
-- `pages/ShortcutsView.vue` - Keyboard shortcut customization
-- `components/PluginSettings.vue` - Individual plugin settings UI
-- `components/ShortcutSettings.vue` - Shortcut editing UI
-- `components/MenuView.vue` - Sidebar menu component
-
-### State Management
-
-The extension uses a **dual storage system**:
-
-1. **SettingsManager** (`utils/settings-manager.ts`):
-   - Manages structured plugin configurations stored in `browser.storage.local`
-   - Storage key: `appSettings` (defined in `utils/localStorage.ts`)
-   - Stores: plugin enabled state, settings values, shortcut customizations
-   - Provides reactive listeners for settings changes across contexts
-   - Schema: `{ plugins: { [pluginId]: PluginConfig } }`
-
-2. **localStorage Wrapper** (`utils/localStorage.ts`):
-   - Type-safe wrapper around `browser.storage.local`
-   - Used in background script for simpler key-value storage
-   - Pattern: `local:plugin:{pluginId}` for boolean enabled states (generated via `STORAGE_KEYS.pluginEnabled()`)
-   - Main storage key: `STORAGE_KEYS.APP_SETTINGS = 'appSettings'`
-   - Both systems synchronized through SettingsManager
-
-**Note**: Both systems are kept in sync. Background script uses localStorage wrapper for simple boolean checks, while popup/options/content scripts use SettingsManager for structured access. SettingsManager uses localStorage wrapper internally.
-
-### Message Passing
-
-Chrome extension message passing patterns:
-
-- **Background → Content Scripts**: `{ type: 'UPDATE_PLUGIN', pluginId, enabled }`
-  - Sent when keyboard shortcuts are triggered or plugins are toggled
-  - Broadcast to all tabs (excluding chrome:// and edge:// URLs)
-
-- **Popup/Options → Background**: `{ type: 'TOGGLE_PLUGIN', pluginId, enabled }`
-  - Sent when user manually toggles a plugin in the UI
-
-### Vue 3 Integration
-
-- Uses Vue 3 with TypeScript via `@wxt-dev/module-vue` module
-- All Vue components use Composition API with `<script setup>`
-- Vue Router for options page navigation
-- Reactive data binding with `ref` and `computed`
-
-### Path Aliases
-
-TypeScript is configured with path alias `@/*` pointing to project root:
 ```typescript
-import { pluginRegistry } from '@/plugins/registry';
-import type { Plugin } from '@/plugins/types';
+onActivate: async (ctx) => {
+  const manager = PluginManager.getInstance();
+  const settings = await manager.getSettings('my-plugin');
+
+  console.log('Enabled:', settings.enabled);
+  console.log('Color:', settings.color);
+
+  // Listen to settings changes
+  manager.addListener((state) => {
+    const newSettings = state.plugins['my-plugin']?.settings;
+    if (newSettings) {
+      console.log('Settings changed:', newSettings);
+    }
+  });
+},
 ```
 
-**Note**: `wxt.config.ts` sets up Vite alias for `@` to `/src`, but WXT auto-generated `.wxt/tsconfig.json` maps it to project root.
+## WXT Framework
 
-### Manifest Generation
+WXT uses convention-based file structure where files in `entrypoints/` define extension parts:
 
-The `wxt.config.ts` file dynamically generates the manifest:
-- Defines extension permissions (`storage`, `activeTab`, `scripting`, `tabs`)
-- Sets `host_permissions: ['<all_urls>']`
-- Auto-generates keyboard shortcut commands via `pluginRegistry.getCommands()`
-- Configures options page to open in a new tab (`open_in_tab: true`)
+- **background.ts**: Service worker (persistent background process)
+- **content/index.ts**: Content script (runs on web pages)
+- **popup/**: Popup UI (click extension icon)
+- **options/**: Full-page settings
 
-**Build Hook**: `build:manifestGenerated` hook imports the plugin registry and injects commands into manifest dynamically.
+### Background Script
 
-### Auto-Generated Files
-
-The `.wxt/` directory contains auto-generated configuration:
-- `.wxt/tsconfig.json` - TypeScript config (extends this in root tsconfig.json)
-- Do not edit these files directly - they're regenerated by `wxt prepare` (runs on postinstall)
-
-### Browser APIs
-
-Use the global `browser` object for WebExtension APIs (WXT provides TypeScript types):
 ```typescript
-browser.runtime.id
-browser.storage.local.get()
-browser.tabs.query()
-browser.commands.onCommand.addListener()
+import { PluginManager } from '@/core';
+import { registerPlugins } from '@/plugins';
+
+export default defineBackground(async () => {
+  const manager = PluginManager.getInstance();
+  await registerPlugins();
+
+  // Handle messages from popup/options
+  browser.runtime.onMessage.addListener(async (message) => {
+    if (message.type === 'TOGGLE_PLUGIN') {
+      await manager.togglePlugin(message.pluginId);
+    }
+  });
+});
 ```
 
-### Platform Detection
+### Content Script
 
-Use the global `platform` singleton from `utils/platform.ts`:
 ```typescript
-import { platform } from '@/utils/platform';
+import { PluginManager, ShortcutManager } from '@/core';
+import { registerPlugins } from '@/plugins';
 
-// Check platform
-platform.isMac       // boolean
-platform.isWindows   // boolean
-platform.isLinux     // boolean
-platform.type        // 'mac' | 'windows' | 'linux' | 'unknown'
-platform.name        // 'macOS' | 'Windows' | 'Linux' | 'Unknown'
+export default defineContentScript({
+  matches: ['<all_urls>'],
+  async main(ctx) {
+    const manager = PluginManager.getInstance();
+    await registerPlugins();
 
-// Helper functions (backward compatibility)
-import { isMac, isWindows, isLinux } from '@/utils/platform';
+    // Activate enabled plugins
+    for (const plugin of manager.getPlugins()) {
+      if (await manager.isEnabled(plugin.id)) {
+        await manager.activate(plugin.id, ctx);
+      }
+    }
+
+    // Cleanup on invalidation
+    ctx.onInvalidated(async () => {
+      await manager.cleanupAll();
+    });
+  },
+});
 ```
 
-### Keyboard Shortcuts
+### Popup / Options (Vue)
 
-Shortcuts use an **abstracted format** that automatically converts to platform-specific representations:
+```vue
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { PluginManager } from '@/core';
 
-#### Defining Shortcuts
+const manager = PluginManager.getInstance();
+const plugins = ref([]);
+
+onMounted(async () => {
+  plugins.value = manager.getPlugins();
+});
+
+async function togglePlugin(pluginId: string) {
+  await manager.togglePlugin(pluginId);
+}
+</script>
+```
+
+## Type System
+
+All types are defined in `types.ts`:
+
 ```typescript
-// In plugin metadata
-shortcuts: [{
-  id: 'toggle',
-  key: ['Cmd', 'Shift', 'P']  // Abstracted format
-}]
+// Plugin definition (simplified, no nesting)
+interface Plugin {
+  id: string;
+  name: string;
+  description: string;
+  category: 'inspector' | 'performance' | 'design' | 'utility';
+  version: string;
+  tier: 'free' | 'pro';
+  icon: (container: HTMLDivElement) => void;
+
+  matches?: string[];
+  runAt?: 'document_start' | 'document_end' | 'document_idle';
+
+  onActivate?: (ctx: ContentScriptContext) => void | Promise<void>;
+  onCleanup?: () => void | Promise<void>;
+
+  settings?: Record<string, PluginSetting>;
+  shortcuts?: Record<string, PluginShortcut>;
+}
+
+// Stored state
+interface PluginState {
+  enabled: boolean;
+  settings: Record<string, any>;
+  shortcuts: Record<string, ShortcutState>;
+}
+
+// App state (stored in browser.storage.local)
+interface AppState {
+  plugins: Record<string, PluginState>;
+}
+```
+
+## Path Aliases
+
+TypeScript is configured with `@/*` alias pointing to project root:
+
+```typescript
+import { PluginManager } from '@/core';
+import type { Plugin } from '@/types';
+import { Platform } from '@/utils/platform';
+```
+
+## Platform Detection
+
+Use the `Platform` singleton for OS-specific logic:
+
+```typescript
+import { Platform } from '@/utils/platform';
+
+const platform = Platform.getInstance();
+
+if (platform.isMac) {
+  // Mac-specific code
+} else if (platform.isWindows) {
+  // Windows-specific code
+}
+
+console.log(platform.type); // 'mac' | 'windows' | 'linux' | 'unknown'
+console.log(platform.name); // 'macOS' | 'Windows' | 'Linux' | 'Unknown'
+```
+
+## Keyboard Shortcuts
+
+Shortcuts use abstracted format that converts to platform-specific representations:
+
+```typescript
+// Define shortcuts
+shortcuts: {
+  toggle: {
+    keys: ['Cmd', 'Shift', 'P'],  // Auto-converts: Mac → ⌘⇧P, Windows → Ctrl+Shift+P
+    handler: async (event, ctx) => { ... }
+  }
+}
 
 // Valid modifier keys: 'Cmd', 'Shift', 'Alt', 'Ctrl'
 // Regular keys: 'A'-'Z', '0'-'9', 'F1'-'F12', etc.
 ```
 
-#### Storage Format
-Custom shortcuts are stored in **Chrome Commands API compatible format**:
+**Storage format** (for custom shortcuts):
 ```typescript
-// PluginConfig.shortcuts[shortcutId].customKey
 {
   windows: 'Ctrl+Shift+P',      // Text format
   mac: 'Command+Shift+P'         // Text format (NOT symbols!)
 }
 ```
 
-#### Display Format
-Shortcuts are displayed with platform-appropriate formatting:
-```typescript
-import { formatShortcutForDisplay } from '@/utils/shortcut-utils';
-
-formatShortcutForDisplay(['Cmd', 'Shift', 'P'])
-// Mac:     ⌘⇧P           (symbols, compact)
-// Windows: Ctrl + Shift + P  (text with spaces)
+**Chrome Commands API format** (in manifest.json):
+```json
+{
+  "plugin-id__shortcut-id": {
+    "suggested_key": {
+      "windows": "Ctrl+Shift+P",
+      "mac": "Command+Shift+P"
+    },
+    "description": "Shortcut description"
+  }
+}
 ```
 
-#### Conversion Utilities
-```typescript
-import {
-  toMacShortcut,         // ['Cmd', 'Shift', 'P'] → '⌘⇧P'
-  toWindowsShortcut,     // ['Cmd', 'Shift', 'P'] → 'Ctrl+Shift+P'
-  toMacShortcutText,     // ['Cmd', 'Shift', 'P'] → 'Command+Shift+P' (API format)
-  toCommandShortcut,     // Generate {windows, mac} object for Chrome API
-  matchesShortcut        // Check if KeyboardEvent matches shortcut
-} from '@/utils/shortcut-utils';
-```
-
-## Business Model & Tiers
-
-The extension has a freemium model:
+## Business Model
 
 - **Free Tier**: 4 core plugins (CSS Spy, Color Picker, Ruler, Grid Overlay)
-- **Pro Tier**: Additional 11 premium plugins
+- **Pro Tier**: 11 premium plugins
 
-Plugins are marked with `tier: 'free' | 'pro'` in their metadata. See `PLUGIN.md` for the complete plugin roadmap and `PRODUCE.md` for business strategy.
+Plugins are marked with `tier: 'free' | 'pro'`.
 
-## Plugin Development Best Practices
+## Important Rules
 
-1. **Use `createPluginExecutor()`**: Let the framework handle settings, shortcuts, and change detection
-2. **Follow naming conventions**: Use `{plugin-id}__{shortcut-id}` for command names
-3. **Provide cleanup logic**: Always implement cleanup to prevent memory leaks
-4. **Settings are read-only**: Access via `helpers.settings`, never mutate directly
-5. **Test across contexts**: Ensure plugin works in popup, options, and content script contexts
-6. **Respect enabled state**: Plugin logic should only run when enabled via SettingsManager
-7. **Use categories**: Group related plugins (`inspector`, `performance`, `design`, `utility`)
-8. **Use abstracted shortcuts**: Define shortcuts as `['Cmd', 'Shift', 'Key']` arrays, not platform-specific strings
-9. **Use platform singleton**: Access `helpers.platform` or `import { platform }` for OS detection
+### DO:
+- ✅ Use `PluginManager` for all plugin operations
+- ✅ Use singleton pattern (`getInstance()`)
+- ✅ Follow the example plugin structure
+- ✅ Provide cleanup logic in plugins
+- ✅ Use TypeScript types from `@/types`
+- ✅ Test on both Mac and Windows
 
-## Plugin Documentation
+### DON'T:
+- ❌ Access `StorageManager` directly (use `PluginManager` instead)
+- ❌ Create new data structures without good reason
+- ❌ Modify core modules (`core/`) unless refactoring
+- ❌ Forget cleanup logic (causes memory leaks)
+- ❌ Use emojis unless explicitly requested
+- ❌ Hardcode platform-specific shortcuts (use abstracted format)
 
-Comprehensive plugin development documentation is in `plugins/docs/`:
-- `01-quick-start.md` - Getting started guide
-- `02-plugin-structure.md` - Detailed structure explanation
-- `03-settings.md` - Settings system
-- `04-shortcuts.md` - Keyboard shortcuts
-- `05-helpers-api.md` - Helper utilities
-- `06-examples.md` - Example plugins
+## Common Tasks
+
+### Adding a new plugin:
+1. Create `plugins/implementations/my-plugin/index.ts`
+2. Define plugin following the `Plugin` interface
+3. Import and register in `plugins/index.ts`
+
+### Modifying plugin behavior:
+1. Update plugin definition in `plugins/implementations/*/index.ts`
+2. Changes are automatically picked up on reload
+
+### Debugging:
+```typescript
+const manager = PluginManager.getInstance();
+const debugInfo = await manager.getDebugInfo();
+console.log(debugInfo);
+```
+
+### Clearing storage:
+```typescript
+const storage = StorageManager.getInstance();
+await storage.clear(); // WARNING: Deletes all data!
+```
+
+## Migration Guide (Old → New Architecture)
+
+If you encounter old code:
+
+### Old (Complex, Coupled):
+```typescript
+import { pluginRegistry } from '@/plugins/registry';
+import { settingsManager } from '@/utils/settings-manager';
+import { localStorage } from '@/utils/localStorage';
+
+const plugins = pluginRegistry.findAll();
+await settingsManager.initialize();
+const enabled = settingsManager.isPluginEnabled('id');
+```
+
+### New (Simple, Encapsulated):
+```typescript
+import { PluginManager } from '@/core';
+
+const manager = PluginManager.getInstance();
+const plugins = manager.getPlugins();
+const enabled = await manager.isEnabled('id');
+```
+
+## Additional Documentation
+
+- **README.md**: Comprehensive architecture guide
+- **PLUGIN.md**: Plugin roadmap (if exists)
+- **PRODUCE.md**: Business strategy (if exists)
+
+## Auto-Generated Files
+
+- `.wxt/`: WXT-generated configuration
+- Do NOT edit these files
+- Regenerated by `wxt prepare` (runs on `npm install`)
+
+---
+
+**Remember**: Keep it simple. Use `PluginManager` for everything. Follow the example plugin.

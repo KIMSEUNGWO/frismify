@@ -1,16 +1,31 @@
+/**
+ * Plugin Registration
+ *
+ * 모든 플러그인을 여기서 import하고 PluginManager에 등록합니다.
+ * 새 플러그인을 추가하려면:
+ * 1. implementations/ 폴더에 플러그인 구현
+ * 2. 여기서 import
+ * 3. registerPlugins() 함수에 추가
+ */
 
-import { pluginRegistry } from '@/plugins/registry'
-import { plugins } from "@/plugins/implementations";
-import { settingsManager } from '@/utils/settings-manager';
+import { PluginManager } from '../core';
+import { examplePlugin } from './implementations/example';
+import { copyProtectionBreakerPlugin } from './implementations/copy-protection-breaker';
 
-plugins.filter(plugin => pluginRegistry.register(plugin))
-    .forEach(async (plugin) => {
-        // 설정 초기화 (처음 등록 시)
-        // Storage를 먼저 확인하여 기존 설정이 있으면 유지
-        await settingsManager.initializePlugin(plugin.meta);
-        console.log(`✅ Registered plugin: ${plugin.meta.name} (${plugin.meta.id})`);
-    })
+/**
+ * 모든 플러그인 등록
+ * Background와 Content Script에서 호출됨
+ */
+export async function registerPlugins(): Promise<void> {
+  const manager = PluginManager.getInstance();
 
-// 개발 중 확인
-console.log('📦 Total plugins loaded:', pluginRegistry.findAll().length);
-console.log('⌨️ Plugins with shortcuts:', pluginRegistry.findAllWithHasShortcuts().length);
+  // 플러그인 등록
+  await manager.register(examplePlugin);
+  await manager.register(copyProtectionBreakerPlugin);
+  // 여기에 추가 플러그인 등록
+  // await manager.register(cssSpyPlugin);
+  // await manager.register(colorPickerPlugin);
+  // ...
+
+  console.log(`[Plugins] ${manager.getPluginCount()} plugins registered`);
+}

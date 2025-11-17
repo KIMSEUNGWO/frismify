@@ -1,26 +1,45 @@
-import {pluginRegistry} from "@/plugins/registry";
-import '@/plugins';
-import { settingsManager } from '@/utils/settings-manager';
+/**
+ * Background Script
+ *
+ * 역할:
+ * - 플러그인 등록
+ * - 플러그인 toggle 메시지 처리
+ * - Chrome Commands (단축키) 처리
+ */
+
+import { PluginManager } from '@/core';
+import { registerPlugins } from '@/plugins';
 
 export default defineBackground(async () => {
   console.log('🚀 Background script loaded');
 
-  // SettingsManager 초기화
-  await settingsManager.initialize();
+  const manager = PluginManager.getInstance();
 
-  console.log('📦 Registered plugins:', pluginRegistry.findAll().map(p => p.meta.name));
+  // 플러그인 등록
+  await registerPlugins();
 
-  // Popup/Options에서 플러그인 enabled 상태 변경 메시지 처리
+  console.log('📦 Registered plugins:', manager.getPlugins().map(p => p.name));
+
+  // Popup/Options에서 플러그인 toggle 메시지 처리
   browser.runtime.onMessage.addListener(async (message, sender) => {
     if (message.type === 'TOGGLE_PLUGIN') {
-      const { pluginId, enabled } = message;
+      const { pluginId } = message;
 
-      console.log(`${enabled ? '✅' : '❌'} Plugin ${pluginId}: ${enabled ? 'enabled' : 'disabled'}`);
-
-      // 상태 저장
-      await settingsManager.setPluginEnabled(pluginId, enabled);
-
-      return { success: true };
+      try {
+        await manager.togglePlugin(pluginId);
+        console.log(`✅ Plugin ${pluginId} toggled`);
+        return { success: true };
+      } catch (error) {
+        console.error(`❌ Failed to toggle plugin ${pluginId}:`, error);
+        return { success: false, error: String(error) };
+      }
     }
   });
+
+  // Chrome Commands (단축키) 처리
+  // 참고: Content Script에서도 단축키를 처리하므로 여기서는 주석 처리
+  // browser.commands.onCommand.addListener(async (command) => {
+  //   console.log(`⌨️ Command received: ${command}`);
+  //   await manager.handleCommand(command, null as any); // Background에서는 ctx 없음
+  // });
 });

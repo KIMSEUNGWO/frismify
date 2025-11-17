@@ -1,107 +1,167 @@
-import type { Plugin } from '@/plugins/types';
+import type { Plugin } from '../../../types';
+import { PluginManager } from '../../../core';
+
+// 전역 상태 관리
+let isActive = false;
+let cleanupFunctions: (() => void)[] = [];
 
 export const copyProtectionBreakerPlugin: Plugin = {
-    meta: {
-        id: 'copy-protection-breaker',
-        name: 'Copy Protection Breaker',
-        description: '우클릭, 텍스트 선택, 복사 차단을 해제합니다',
-        drawIcon: draw,
-        category: "utility",
-        version: '0.0.1',
-        author: 'Seungwoo Kim',
-        tier: 'pro',
-        shortcuts: [
-            {
-                id: 'toggle',
-                name: 'Toggle Copy Protection Breaker',
-                description: 'Enable or disable copy protection breaker',
-                key: ['Cmd', 'Shift', 'Y'],
-                handler: (event, ctx) => {
+    // === 메타데이터 ===
+    id: 'copy-protection-breaker',
+    name: 'Copy Protection Breaker',
+    description: '우클릭, 텍스트 선택, 복사 차단을 해제합니다',
+    category: "utility",
+    version: '1.0.0',
+    tier: 'free',
+
+    // 아이콘
+    icon: draw,
+
+    // === 설정 스키마 ===
+    settings: {
+        blockContextMenu: {
+            type: 'boolean',
+            label: 'Enable Right Click',
+            description: '우클릭 차단 해제',
+            defaultValue: true,
+        },
+        blockSelectStart: {
+            type: 'boolean',
+            label: 'Enable Text Selection',
+            description: '텍스트 선택 차단 해제',
+            defaultValue: true,
+        },
+        blockCopy: {
+            type: 'boolean',
+            label: 'Enable Copy/Cut',
+            description: '복사/잘라내기 차단 해제',
+            defaultValue: true,
+        },
+        blockKeyboard: {
+            type: 'boolean',
+            label: 'Enable F12/DevTools',
+            description: 'F12 및 개발자도구 단축키 차단 해제',
+            defaultValue: true,
+        },
+    },
+
+    // === 단축키 ===
+    shortcuts: {
+        toggle: {
+            name: 'Toggle Copy Protection Breaker',
+            description: 'Toggle copy protection breaker on/off',
+            keys: ['Cmd', 'Shift', 'Y'],
+            handler: async (event, ctx) => {
+                if (!isActive) {
+                    // 활성화
                     console.log('🔓 Copy Protection Breaker activated!');
+                    isActive = true;
+                    activateProtection(ctx);
 
-                    // 단축키 정보 가져오기
                     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-                    const shortcutKey = isMac ? 'Cmd+Shift+Y' : 'Ctrl+Shift+Y';
-
-                    // Toast Modal 표시
                     showToastModal({
                         status: 'activated',
-                        shortcut: shortcutKey,
-                        features: [
-                            '✅ 우클릭 차단 해제',
-                            '✅ 텍스트 선택 차단 해제',
-                            '✅ 복사/잘라내기 차단 해제',
-                            '✅ F12/DevTools 차단 해제',
-                            '✅ 드래그 차단 해제'
-                        ]
+                        shortcut: isMac ? '⌘⇧C' : 'Ctrl+Shift+C',
+                        features: []
                     });
+                } else {
+                    // 비활성화
+                    console.log('🔒 Copy Protection Breaker deactivated!');
+                    isActive = false;
+                    deactivateProtection();
 
-                    // 이벤트 차단 해제 함수: 다른 리스너가 실행되지 못하게 막되, 기본 동작은 허용
-                    const forceEnable = (e: Event) => {
-                        e.stopPropagation();
-                        e.stopImmediatePropagation();
-                        // preventDefault()는 호출하지 않음 - 기본 동작을 허용해야 함!
-                        return true;
-                    };
-
-                    // 이벤트 리스너를 capture phase에 등록하여 웹사이트의 차단보다 먼저 실행
-                    const events = ['contextmenu', 'selectstart', 'copy', 'cut', 'paste', 'mousedown', 'mouseup', 'keydown', 'keyup', 'dragstart'];
-                    events.forEach(event => {
-                        // capture phase (true)에서 등록하여 가장 먼저 실행
-                        ctx.addEventListener(document, event, forceEnable, true);
-                        ctx.addEventListener(window, event, forceEnable, true);
-                        ctx.addEventListener(document.body, event, forceEnable, true);
-                        ctx.addEventListener(document.documentElement, event, forceEnable, true);
+                    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+                    showToastModal({
+                        status: 'deactivated',
+                        shortcut: isMac ? '⌘⇧C' : 'Ctrl+Shift+C',
+                        features: []
                     });
+                }
+            },
+        }
+    },
 
-                    // 모든 요소의 인라인 이벤트 핸들러 제거
-                    const removeInlineHandlers = (element: HTMLElement) => {
-                        const handlers = ['ondragstart', 'onselectstart', 'oncontextmenu', 'oncopy', 'oncut', 'onpaste', 'onmousedown', 'onmouseup'];
-                        handlers.forEach(handler => {
-                            try {
-                                if ((element as any)[handler]) {
-                                    (element as any)[handler] = null;
-                                }
-                            } catch (e) {
-                                // 읽기 전용 속성은 무시
-                            }
-                        });
-                    };
+    // === 실행 설정 ===
+    matches: ['<all_urls>'],
+    runAt: "document_idle",
 
-                    // 모든 기존 요소 처리
-                    document.querySelectorAll('*').forEach(el => removeInlineHandlers(el as HTMLElement));
-                    removeInlineHandlers(document.body);
-                    removeInlineHandlers(document.documentElement);
+    // === 라이프사이클 ===
+    onActivate: async (ctx) => {
+        console.log('✅ Copy Protection Breaker plugin loaded');
+        // 자동으로 활성화하지 않고 단축키로만 토글
+        isActive = false;
+        cleanupFunctions = [];
+    },
 
-                    // 동적으로 추가되는 요소 감지
-                    const observer = new MutationObserver((mutations) => {
-                        mutations.forEach(mutation => {
-                            mutation.addedNodes.forEach(node => {
-                                if (node.nodeType === 1) {
-                                    removeInlineHandlers(node as HTMLElement);
-                                }
-                            });
-                        });
-                    });
+    onCleanup: () => {
+        console.log('🧹 Copy Protection Breaker plugin cleaned up');
+        if (isActive) {
+            deactivateProtection();
+        }
+        isActive = false;
+        cleanupFunctions = [];
+    }
+}
 
-                    observer.observe(document.body, {
-                        childList: true,
-                        subtree: true
-                    });
+// 보호 활성화 함수
+function activateProtection(ctx: any) {
+    // 이벤트 차단 해제 함수
+    const forceEnable = (e: Event) => {
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return true;
+    };
 
-                    ctx.onInvalidated(() => {
-                        observer.disconnect();
-                    });
+    // 이벤트 리스너를 capture phase에 등록
+    const events = ['contextmenu', 'selectstart', 'copy', 'cut', 'paste', 'mousedown', 'mouseup', 'keydown', 'keyup', 'dragstart'];
+    events.forEach(eventName => {
+        document.addEventListener(eventName, forceEnable, true);
+        window.addEventListener(eventName, forceEnable, true);
+        document.body?.addEventListener(eventName, forceEnable, true);
+        document.documentElement?.addEventListener(eventName, forceEnable, true);
+    });
 
-                    // CSS로 텍스트 선택 강제 활성화
-                    document.body.style.userSelect = 'auto';
-                    document.body.style.webkitUserSelect = 'auto';
-                    document.documentElement.style.userSelect = 'auto';
+    // 모든 요소의 인라인 이벤트 핸들러 제거
+    const removeInlineHandlers = (element: HTMLElement) => {
+        const handlers = ['ondragstart', 'onselectstart', 'oncontextmenu', 'oncopy', 'oncut', 'onpaste', 'onmousedown', 'onmouseup'];
+        handlers.forEach(handler => {
+            try {
+                if ((element as any)[handler]) {
+                    (element as any)[handler] = null;
+                }
+            } catch (e) {
+                // 읽기 전용 속성은 무시
+            }
+        });
+    };
 
-                    // 모든 요소에 대해 user-select 강제 활성화
-                    const style = document.createElement('style');
-                    style.id = 'copy-protection-breaker-style';
-                    style.textContent = `
+    // 모든 기존 요소 처리
+    document.querySelectorAll('*').forEach(el => removeInlineHandlers(el as HTMLElement));
+    removeInlineHandlers(document.body);
+    removeInlineHandlers(document.documentElement);
+
+    // 동적으로 추가되는 요소 감지
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach(mutation => {
+            mutation.addedNodes.forEach(node => {
+                if (node.nodeType === 1) {
+                    removeInlineHandlers(node as HTMLElement);
+                }
+            });
+        });
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+
+    cleanupFunctions.push(() => observer.disconnect());
+
+    // CSS로 텍스트 선택 강제 활성화
+    const style = document.createElement('style');
+    style.id = 'copy-protection-breaker-style';
+    style.textContent = `
         * {
             user-select: auto !important;
             -webkit-user-select: auto !important;
@@ -109,75 +169,36 @@ export const copyProtectionBreakerPlugin: Plugin = {
             -ms-user-select: auto !important;
         }
     `;
-                    document.head.appendChild(style);
+    document.head.appendChild(style);
 
-                    // cleanup 시 스타일 제거를 위해 저장
-                    ctx.onInvalidated(() => {
-                        const styleElement = document.getElementById('copy-protection-breaker-style');
-                        styleElement?.remove();
-                    });
-                },
-                enabled: true,
-            }
-        ],
+    cleanupFunctions.push(() => {
+        const styleElement = document.getElementById('copy-protection-breaker-style');
+        styleElement?.remove();
+    });
 
-        settingOptions: [
-            {
-                id: 'blockContextMenu',
-                name: 'Enable Right Click',
-                description: '우클릭 차단 해제',
-                type: 'boolean',
-                defaultValue: true,
-            },
-            {
-                id: 'blockSelectStart',
-                name: 'Enable Text Selection',
-                description: '텍스트 선택 차단 해제',
-                type: 'boolean',
-                defaultValue: true,
-            },
-            {
-                id: 'blockCopy',
-                name: 'Enable Copy/Cut',
-                description: '복사/잘라내기 차단 해제',
-                type: 'boolean',
-                defaultValue: true,
-            },
-            {
-                id: 'blockKeyboard',
-                name: 'Enable F12/DevTools',
-                description: 'F12 및 개발자도구 단축키 차단 해제',
-                type: 'boolean',
-                defaultValue: true,
-            }
-        ]
-    },
-
-    defaultSettings: {
-        blockContextMenu: true,
-        blockSelectStart: true,
-        blockCopy: true,
-        blockKeyboard: true,
-    },
-
-    matches: ['<all_urls>'],
-    runAt: "document_idle",
-    cleanup: () => {
-        console.log('🔓 Copy Protection Breaker deactivated!');
-
-        // Toast Modal 표시
-        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-        const shortcutKey = isMac ? 'Cmd+Shift+Y' : 'Ctrl+Shift+Y';
-
-        showToastModal({
-            status: 'deactivated',
-            shortcut: shortcutKey,
-            features: []
+    // 이벤트 리스너 제거 함수 저장
+    cleanupFunctions.push(() => {
+        events.forEach(eventName => {
+            document.removeEventListener(eventName, forceEnable, true);
+            window.removeEventListener(eventName, forceEnable, true);
+            document.body?.removeEventListener(eventName, forceEnable, true);
+            document.documentElement?.removeEventListener(eventName, forceEnable, true);
         });
+    });
+}
 
-        // CSS 복원
+// 보호 비활성화 함수
+function deactivateProtection() {
+    // 모든 cleanup 함수 실행
+    cleanupFunctions.forEach(cleanup => cleanup());
+    cleanupFunctions = [];
+
+    // CSS 복원
+    if (document.body) {
         document.body.style.userSelect = '';
         document.body.style.webkitUserSelect = '';
+    }
+    if (document.documentElement) {
         document.documentElement.style.userSelect = '';
     }
 }
@@ -194,7 +215,6 @@ function draw(div: HTMLDivElement) {
     <path d="M16 11L15 12L13 10" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
 `;
-    return div;
 }
 
 

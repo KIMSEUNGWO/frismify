@@ -5,10 +5,10 @@
         <div ref="iconContainer" class="plugin-icon"></div>
         <div class="plugin-title">
           <div class="plugin-title-wrap">
-            <TierTag :tier="plugin.meta.tier"/>
-            <h3 class="plugin-name">{{ plugin.meta.name }}</h3>
+            <TierTag :tier="plugin.tier"/>
+            <h3 class="plugin-name">{{ plugin.name }}</h3>
           </div>
-          <p class="plugin-description">{{ plugin.meta.description }}</p>
+          <p class="plugin-description">{{ plugin.description }}</p>
         </div>
       </div>
     </div>
@@ -16,14 +16,15 @@
     <div class="plugin-extra">
       <ToggleSwitch
         :model-value="enabled"
-        @update:model-value="$emit('toggle', plugin.meta.id)"
+        @update:model-value="$emit('toggle', plugin.id)"
       />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import type { Plugin } from '@/plugins/types';
+import { ref, onMounted } from 'vue';
+import type { Plugin } from '@/types';
 import ToggleSwitch from '@/components/ToggleSwitch.vue';
 import TierTag from "@/components/TierTag.vue";
 
@@ -39,7 +40,9 @@ defineEmits<{
 }>();
 
 onMounted(() => {
-  props.plugin.meta.drawIcon(iconContainer.value!);
+  if (props.plugin.icon && iconContainer.value) {
+    props.plugin.icon(iconContainer.value);
+  }
 })
 
 </script>

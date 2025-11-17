@@ -1,72 +1,64 @@
-import type { Plugin } from '@/plugins/types';
+import type { Plugin } from '@/types';
 import { ContentScriptContext } from "wxt/utils/content-script-context";
 
 export const imageSpyPlugin: Plugin = {
-    meta: {
-        id: 'image-spy',
-        name: 'Image Spy',
-        description: '페이지의 모든 이미지와 SVG를 쉽게 다운로드',
-        drawIcon: draw,
-        category: "utility",
-        version: '0.0.1',
-        author: 'Seungwoo Kim',
-        tier: 'free',
+    // === 메타데이터 ===
+    id: 'image-spy',
+    name: 'Image Spy',
+    description: '페이지의 모든 이미지와 SVG를 쉽게 다운로드',
+    category: "utility",
+    version: '0.0.1',
+    tier: 'free',
 
-        shortcuts: [
-            {
-                id: 'toggle',
-                name: 'Toggle Image Spy',
-                description: 'Show or hide image asset panel',
-                key: ['Cmd', 'Shift', 'M'],
-                enabled: true,
-            }
-        ],
+    // 아이콘
+    icon: draw,
 
-        settingOptions: [
-            {
-                id: 'showImages',
-                name: 'Show Images',
-                description: 'img 태그 표시',
-                type: 'boolean',
-                defaultValue: true,
-            },
-            {
-                id: 'showSVG',
-                name: 'Show SVG',
-                description: 'SVG 요소 표시',
-                type: 'boolean',
-                defaultValue: true,
-            },
-            {
-                id: 'showBackgroundImages',
-                name: 'Show Background Images',
-                description: 'CSS background-image 표시',
-                type: 'boolean',
-                defaultValue: true,
-            },
-            {
-                id: 'minSize',
-                name: 'Minimum Size (px)',
-                description: '최소 이미지 크기 (작은 아이콘 제외)',
-                type: 'number',
-                defaultValue: 50,
-            }
-        ]
+    // === 설정 스키마 ===
+    settings: {
+        showImages: {
+            type: 'boolean',
+            label: 'Show Images',
+            description: 'img 태그 표시',
+            defaultValue: true,
+        },
+        showSVG: {
+            type: 'boolean',
+            label: 'Show SVG',
+            description: 'SVG 요소 표시',
+            defaultValue: true,
+        },
+        showBackgroundImages: {
+            type: 'boolean',
+            label: 'Show Background Images',
+            description: 'CSS background-image 표시',
+            defaultValue: true,
+        },
+        minSize: {
+            type: 'number',
+            label: 'Minimum Size (px)',
+            description: '최소 이미지 크기 (작은 아이콘 제외)',
+            defaultValue: 50,
+        }
     },
 
-    defaultSettings: {
-        showImages: true,
-        showSVG: true,
-        showBackgroundImages: true,
-        minSize: 50,
+    // === 단축키 ===
+    shortcuts: {
+        toggle: {
+            name: 'Toggle Image Spy',
+            description: 'Show or hide image asset panel',
+            keys: ['Cmd', 'Shift', 'M'],
+            handler: async (event: KeyboardEvent, ctx: ContentScriptContext) => {
+                await run(ctx);
+            }
+        }
     },
 
+    // === 실행 설정 ===
     matches: ['<all_urls>'],
     runAt: "document_idle",
 
-    execute: run,
-
-    cleanup: () => {
+    // === 라이프사이클 ===
+    onCleanup: () => {
         console.log('🖼️ Image Spy deactivated!');
         const panel = document.getElementById('image-spy-panel');
         panel?.remove();
