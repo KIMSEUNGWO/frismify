@@ -1,0 +1,91 @@
+:root {
+    --font-color-1: #F8FAFC;
+    --font-color-2: #94A3B8;
+    --font-disabled: #3E4750;
+
+    --border-color: #2D2D44;
+
+    --bg-dark: #0F0F23;
+    --bg-darker: #0A0A0F;
+
+    --card-bg-color: #1A1A2E;
+    --card-bg-hover: #252542;
+
+    --purple: #8B5CF6;
+    --pink: #EC4899;
+    --orange: #FB923C;
+    --cyan: #06B6D4;
+    --green: #22C55E;
+    --yellow: #FDE047;
+    --red: #EC484B;
+
+    --gradient-point: linear-gradient(135deg, #8B5CF6, #EC4899);
+    --plugin-css-spy: linear-gradient(135deg, #8B5CF6, #EC4899);
+    --plugin-color-picker: linear-gradient(135deg, #06B6D4, #22C55E);
+    --plugin-ruler: linear-gradient(135deg, #FB923C, #FDE047);
+    --plugin-grid-overlay: linear-gradient(135deg, #A855F7, #0EA5E9);
+
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+
+}
+
+body {
+    font-family: 'Pretendard', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--bg-dark);
+}
+
+button {
+    border: none;
+    cursor: pointer;
+    background-color: transparent;
+}
+
+svg {
+    pointer-events: none;
+}
+li {
+    list-style: none;
+}
+a {
+    text-decoration: none;
+}
+
+.plugin-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--font-color-1);
+    line-height: 1.4;
+}
+p, span {
+    color: var(--font-color-2);
+    line-height: 1.4;
+}
