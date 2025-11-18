@@ -5,7 +5,7 @@ declare global {
   const EffectScope: typeof import('vue').EffectScope
   const InvalidMatchPattern: typeof import('wxt/utils/match-patterns').InvalidMatchPattern
   const MatchPattern: typeof import('wxt/utils/match-patterns').MatchPattern
-  const Platform: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform').Platform
+  const Platform: typeof import('C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform').Platform
   const browser: typeof import('wxt/browser').browser
   const computed: typeof import('vue').computed
   const createApp: typeof import('vue').createApp
@@ -28,14 +28,14 @@ declare global {
   const h: typeof import('vue').h
   const inject: typeof import('vue').inject
   const injectScript: typeof import('wxt/utils/inject-script').injectScript
-  const isLinux: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform').isLinux
-  const isMac: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform').isMac
+  const isLinux: typeof import('C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform').isLinux
+  const isMac: typeof import('C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform').isMac
   const isProxy: typeof import('vue').isProxy
   const isReactive: typeof import('vue').isReactive
   const isReadonly: typeof import('vue').isReadonly
   const isRef: typeof import('vue').isRef
   const isShallow: typeof import('vue').isShallow
-  const isWindows: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform').isWindows
+  const isWindows: typeof import('C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform').isWindows
   const markRaw: typeof import('vue').markRaw
   const nextTick: typeof import('vue').nextTick
   const onActivated: typeof import('vue').onActivated
@@ -52,7 +52,7 @@ declare global {
   const onUnmounted: typeof import('vue').onUnmounted
   const onUpdated: typeof import('vue').onUpdated
   const onWatcherCleanup: typeof import('vue').onWatcherCleanup
-  const platform: typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform').platform
+  const platform: typeof import('C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform').platform
   const provide: typeof import('vue').provide
   const reactive: typeof import('vue').reactive
   const readonly: typeof import('vue').readonly
@@ -114,8 +114,8 @@ declare global {
   export type { Component, Slot, Slots, ComponentPublicInstance, ComputedRef, DirectiveBinding, ExtractDefaultPropTypes, ExtractPropTypes, ExtractPublicPropTypes, InjectionKey, PropType, Ref, ShallowRef, MaybeRef, MaybeRefOrGetter, VNode, WritableComputedRef } from 'vue'
   import('vue')
   // @ts-ignore
-  export type { Platform, PlatformType } from '/Users/tmd8635/Desktop/project/prismify/utils/platform'
-  import('/Users/tmd8635/Desktop/project/prismify/utils/platform')
+  export type { Platform, PlatformType } from 'C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform'
+  import('C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform')
 }
 // for vue template auto import
 import { UnwrapRef } from 'vue'
@@ -125,7 +125,7 @@ declare module 'vue' {
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly InvalidMatchPattern: UnwrapRef<typeof import('wxt/utils/match-patterns')['InvalidMatchPattern']>
     readonly MatchPattern: UnwrapRef<typeof import('wxt/utils/match-patterns')['MatchPattern']>
-    readonly Platform: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform')['Platform']>
+    readonly Platform: UnwrapRef<typeof import('C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform')['Platform']>
     readonly browser: UnwrapRef<typeof import('wxt/browser')['browser']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>
     readonly createApp: UnwrapRef<typeof import('vue')['createApp']>
@@ -148,14 +148,14 @@ declare module 'vue' {
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectScript: UnwrapRef<typeof import('wxt/utils/inject-script')['injectScript']>
-    readonly isLinux: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform')['isLinux']>
-    readonly isMac: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform')['isMac']>
+    readonly isLinux: UnwrapRef<typeof import('C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform')['isLinux']>
+    readonly isMac: UnwrapRef<typeof import('C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform')['isMac']>
     readonly isProxy: UnwrapRef<typeof import('vue')['isProxy']>
     readonly isReactive: UnwrapRef<typeof import('vue')['isReactive']>
     readonly isReadonly: UnwrapRef<typeof import('vue')['isReadonly']>
     readonly isRef: UnwrapRef<typeof import('vue')['isRef']>
     readonly isShallow: UnwrapRef<typeof import('vue')['isShallow']>
-    readonly isWindows: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform')['isWindows']>
+    readonly isWindows: UnwrapRef<typeof import('C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform')['isWindows']>
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
     readonly onActivated: UnwrapRef<typeof import('vue')['onActivated']>
@@ -172,7 +172,7 @@ declare module 'vue' {
     readonly onUnmounted: UnwrapRef<typeof import('vue')['onUnmounted']>
     readonly onUpdated: UnwrapRef<typeof import('vue')['onUpdated']>
     readonly onWatcherCleanup: UnwrapRef<typeof import('vue')['onWatcherCleanup']>
-    readonly platform: UnwrapRef<typeof import('/Users/tmd8635/Desktop/project/prismify/utils/platform')['platform']>
+    readonly platform: UnwrapRef<typeof import('C:/Users/tmd86/OneDrive/Desktop/project/frismify/utils/platform')['platform']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
     readonly reactive: UnwrapRef<typeof import('vue')['reactive']>
     readonly readonly: UnwrapRef<typeof import('vue')['readonly']>

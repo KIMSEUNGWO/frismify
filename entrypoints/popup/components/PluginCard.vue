@@ -36,7 +36,7 @@ import ShortcutBadge from '@/components/ShortcutBadge.vue';
 
 const manager = PluginManager.getInstance();
 const iconContainer = ref<HTMLDivElement>();
-const pluginState = ref<PluginState | null>(null);
+const pluginState = ref<PluginState | undefined>(undefined);
 
 const props = defineProps<{
   plugin: Plugin;
@@ -45,7 +45,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   toggle: [pluginId: string];
-  execute: [pluginId: string];
+  execute: [plugin: Plugin];
 }>();
 
 // 등록된 execute 단축키가 있는지 확인
@@ -57,7 +57,7 @@ const executeShortcutKeys = computed(() => {
 
 const handleCardClick = () => {
   if (props.plugin.onExecute) {
-    emit('execute', props.plugin.id);
+    emit('execute', props.plugin);
   }
 };
 

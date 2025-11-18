@@ -11,6 +11,13 @@
 import { PluginManager, ShortcutManager } from '@/core';
 import { registerPlugins } from '@/plugins';
 
+import { createApp } from "vue";
+import '@/assets/styles/main.css';
+import '@/assets/fonts/fonts.css'
+import '@/plugins';
+import App from "./App.vue";
+import router from './router'
+
 export default defineContentScript({
   matches: ['<all_urls>'],
   runAt: 'document_idle',
@@ -45,6 +52,12 @@ export default defineContentScript({
         const { pluginId } = message;
         console.log(`🚀 Executing plugin: ${pluginId}`);
         manager.executePlugin(pluginId, ctx);
+        return;
+      }
+
+      if (message.type === 'OPEN_MODAL') {
+        const { pluginId } = message;
+        openModal(pluginId);
       }
     });
 
@@ -114,3 +127,21 @@ export default defineContentScript({
     });
   },
 });
+
+
+function openModal(pluginId: string) {
+  console.log('모달 오픈 직전');
+  const container = document.createElement("div");
+  container.id = "modal-container";
+  document.body.appendChild(container);
+
+// Vue mount
+  console.log("🔧 Mounting modal...");
+  createApp(App)
+      .provide('pluginId', pluginId)
+      .use(router)
+      .mount(container);
+  console.log("🔧 Mount finished");
+
+
+}

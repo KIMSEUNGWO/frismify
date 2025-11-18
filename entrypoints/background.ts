@@ -13,12 +13,12 @@ import { registerPlugins } from '@/plugins';
 export default defineBackground(async () => {
   console.log('🚀 Background script loaded');
 
-  const manager = PluginManager.getInstance();
+  const pluginManager = PluginManager.getInstance();
 
   // 플러그인 등록
   await registerPlugins();
 
-  console.log('📦 Registered plugins:', manager.getPlugins().map(p => p.name));
+  console.log('📦 Registered plugins:', pluginManager.getPlugins().map(p => p.name));
 
   // Popup/Options에서 플러그인 toggle 메시지 처리
   browser.runtime.onMessage.addListener(async (message, sender) => {
@@ -26,11 +26,30 @@ export default defineBackground(async () => {
       const { pluginId } = message;
 
       try {
-        await manager.togglePlugin(pluginId);
+        await pluginManager.togglePlugin(pluginId);
         console.log(`✅ Plugin ${pluginId} toggled`);
         return { success: true };
       } catch (error) {
         console.error(`❌ Failed to toggle plugin ${pluginId}:`, error);
+        return { success: false, error: String(error) };
+      }
+    }
+
+    if (message.type === 'OPEN_MODAL') {
+      const { pluginId } = message;
+
+      try {
+        const tabs = await browser.tabs.query({ active: true, currentWindow: true});
+        if (tabs[0]?.id) {
+          await browser.tabs.sendMessage(tabs[0].id!, {
+            type: 'OPEN_MODAL',
+            pluginId
+          });
+        }
+        console.log(`✅ Plugin ${pluginId} open modal message sent`);
+        return { success: true };
+      } catch (error) {
+        console.error(`❌ Failed to Open Modal ${pluginId}`, error);
         return { success: false, error: String(error) };
       }
     }
@@ -54,6 +73,7 @@ export default defineBackground(async () => {
         return { success: false, error: String(error) };
       }
     }
+
   });
 
   // Chrome Commands (단축키) 처리

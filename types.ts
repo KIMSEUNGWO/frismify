@@ -41,6 +41,7 @@ export interface Plugin {
   // 플러그인 실행 (Popup 클릭 시 또는 단축키로 실행)
   // 단축키는 PluginState.shortcuts['execute']에 사용자가 등록
   onExecute?: {
+    type: 'EXECUTE_PLUGIN' | 'OPEN_MODAL'
     execute: (ctx: ContentScriptContext) => void | Promise<void>
   },
 

@@ -5,6 +5,7 @@
  */
 
 import type { Plugin } from '../../../types';
+import {browser} from "wxt/browser";
 
 export const examplePlugin: Plugin = {
   // ===== 메타데이터 =====
@@ -100,4 +101,10 @@ export const examplePlugin: Plugin = {
     const banner = document.getElementById('example-plugin-banner');
     banner?.remove();
   },
+
+  onExecute: {
+    type: 'OPEN_MODAL',
+    execute: async (ctx) => {
+    }
+  }
 };

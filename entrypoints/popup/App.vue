@@ -82,11 +82,11 @@ const togglePlugin = async (pluginId: string) => {
 }
 
 // 플러그인 실행
-const executePlugin = async (pluginId: string) => {
+const executePlugin = async (plugin: Plugin) => {
   // Background로 메시지 전송
   await browser.runtime.sendMessage({
-    type: 'EXECUTE_PLUGIN',
-    pluginId,
+    type: plugin.onExecute?.type,
+    pluginId : plugin.id,
   });
 }
 
