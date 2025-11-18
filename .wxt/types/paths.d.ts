@@ -8,6 +8,7 @@ declare module "wxt/browser" {
     | "/arrow-bottom.svg"
     | "/background.js"
     | "/content-scripts/content.js"
+    | "/copy-breaker.svg"
     | "/dashboard.svg"
     | "/docs.svg"
     | "/fold.svg"

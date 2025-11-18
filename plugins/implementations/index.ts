@@ -1,4 +1,4 @@
-import {copyProtectionBreakerPlugin} from "@/plugins/implementations/copy-protection-breaker";
+import {copyProtectionBreakerPlugin} from "copy-breaker";
 import {imageSpyPlugin} from "@/plugins/implementations/image-spy";
 import cssSpyPluginExample from "@/plugins/implementations/css-spy/css-spy.example";
 

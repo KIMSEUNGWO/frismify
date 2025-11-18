@@ -16,9 +16,10 @@ export const examplePlugin: Plugin = {
   tier: 'free',
 
   // 아이콘 렌더링
-  icon: (container) => {
-    container.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-    container.innerHTML = `
+  icon: (div) => {
+    div.style.background = `linear-gradient(135deg, #feda75, #fa7e1e)`;
+    div.className += ' plugin-icon';
+    div.innerHTML = `
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         <path d="M2 17L12 22L22 17" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>

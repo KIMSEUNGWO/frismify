@@ -1,13 +1,12 @@
 import type { Plugin } from '../../../types';
-import { PluginManager } from '../../../core';
 
 // 전역 상태 관리
 let cleanupFunctions: (() => void)[] = [];
 
 export const copyProtectionBreakerPlugin: Plugin = {
     // === 메타데이터 ===
-    id: 'copy-protection-breaker',
-    name: 'Copy Protection Breaker',
+    id: 'copy-breaker',
+    name: 'Copy Breaker',
     description: '우클릭, 텍스트 선택, 복사 차단을 해제합니다',
     category: "utility",
     version: '1.0.0',
@@ -44,35 +43,30 @@ export const copyProtectionBreakerPlugin: Plugin = {
         },
     },
 
-    // === 단축키 ===
-    shortcuts: {
-        toggle: {
-            name: 'Toggle Copy Protection Breaker',
-            description: 'Toggle copy protection breaker on/off',
-            keys: ['Cmd', 'Shift', 'Y'],
-            handler: async (event, ctx) => {
-                // 활성화
-                console.log('🔓 Copy Protection Breaker activated!');
-                activateProtection(ctx);
-
-                const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-                showToastModal({
-                    status: 'activated',
-                    shortcut: isMac ? '⌘⇧C' : 'Ctrl+Shift+C',
-                    features: []
-                });
-            },
-        }
-    },
-
     // === 실행 설정 ===
     matches: ['<all_urls>'],
     runAt: "document_idle",
 
+    // === 플러그인 실행 (토글) ===
+    onExecute: {
+        execute: async (ctx) => {
+            // 활성화
+            console.log('🔓 Copy Protection Breaker activated!');
+            activateProtection(ctx);
+
+            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+            showToastModal({
+                status: 'activated',
+                shortcut: isMac ? '⌘⇧Y' : 'Ctrl+Shift+Y',
+                features: []
+            });
+        },
+        shortcut: ['Cmd', 'Shift', 'Y'],
+    },
+
     // === 라이프사이클 ===
     onActivate: async (ctx) => {
         console.log('✅ Copy Protection Breaker plugin loaded');
-        // 자동으로 활성화하지 않고 단축키로만 토글
         cleanupFunctions = [];
     },
 
@@ -140,7 +134,7 @@ function activateProtection(ctx: any) {
 
     // CSS로 텍스트 선택 강제 활성화
     const style = document.createElement('style');
-    style.id = 'copy-protection-breaker-style';
+    style.id = 'copy-breaker-style';
     style.textContent = `
         * {
             user-select: auto !important;
@@ -152,7 +146,7 @@ function activateProtection(ctx: any) {
     document.head.appendChild(style);
 
     cleanupFunctions.push(() => {
-        const styleElement = document.getElementById('copy-protection-breaker-style');
+        const styleElement = document.getElementById('copy-breaker-style');
         styleElement?.remove();
     });
 
@@ -184,16 +178,17 @@ function deactivateProtection() {
 }
 
 function draw(div: HTMLDivElement) {
-    div.style.background = 'var(--plugin-copy-protection-breaker, #10b981)';
-    div.className = 'plugin-icon';
+    div.style.background = 'var(--plugin-copy-breaker)';
+    div.className += ' plugin-icon';
     div.innerHTML = `
 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M8 4V16C8 17.1046 8.89543 18 10 18H18C19.1046 18 20 17.1046 20 16V7.24162C20 6.7034 19.7831 6.18789 19.3982 5.81161L16.1566 2.62007C15.7823 2.25379 15.2723 2.04608 14.7417 2.04608H10C8.89543 2.04608 8 2.94151 8 4.04608Z" stroke="white" stroke-width="2"/>
-    <path d="M16 18V20C16 21.1046 15.1046 22 14 22H6C4.89543 22 4 21.1046 4 20V9C4 7.89543 4.89543 7 6 7H8" stroke="white" stroke-width="2"/>
-    <path d="M14 2V5C14 6.10457 14.8954 7 16 7H20" stroke="white" stroke-width="2" stroke-linecap="round"/>
-    <circle cx="14" cy="11" r="3" stroke="white" stroke-width="2"/>
-    <path d="M16 11L15 12L13 10" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M2 3.5C2 2.67157 2.67157 2 3.5 2H20.5C21.3284 2 22 2.67157 22 3.5V5H2V3.5Z" fill="white"/>
+<path d="M5.5 3.75C5.5 4.16421 5.16421 4.5 4.75 4.5C4.33579 4.5 4 4.16421 4 3.75C4 3.33579 4.33579 3 4.75 3C5.16421 3 5.5 3.33579 5.5 3.75Z" fill="#EC484B"/>
+<path d="M8 3.75C8 4.16421 7.66421 4.5 7.25 4.5C6.83579 4.5 6.5 4.16421 6.5 3.75C6.5 3.33579 6.83579 3 7.25 3C7.66421 3 8 3.33579 8 3.75Z" fill="#FB923C"/>
+<path d="M10.5 3.75C10.5 4.16421 10.1642 4.5 9.75 4.5C9.33579 4.5 9 4.16421 9 3.75C9 3.33579 9.33579 3 9.75 3C10.1642 3 10.5 3.33579 10.5 3.75Z" fill="#22C55E"/>
+<path d="M22 20C22 21.1046 21.1046 22 20 22H4C2.89543 22 2 21.1046 2 20V5H22V20ZM4.5 6.59375C3.94772 6.59375 3.5 7.04147 3.5 7.59375V19.4062C3.5 19.9585 3.94772 20.4062 4.5 20.4062H19.5C20.0523 20.4062 20.5 19.9585 20.5 19.4062V7.59375C20.5 7.04147 20.0523 6.59375 19.5 6.59375H4.5ZM12 9.33301C12.4545 9.33301 12.8821 9.45469 13.25 9.66797C13.2996 9.69394 13.3434 9.73012 13.3789 9.77344C13.4145 9.81694 13.4414 9.8679 13.457 9.92188C13.4726 9.97573 13.4775 10.0322 13.4707 10.0879C13.4639 10.1436 13.446 10.1975 13.418 10.2461C13.3898 10.2947 13.3516 10.3374 13.3066 10.3711C13.2618 10.4047 13.2107 10.429 13.1562 10.4424C13.1017 10.4558 13.0447 10.4574 12.9893 10.4482C12.9338 10.4391 12.8804 10.4198 12.833 10.3896C12.5797 10.2434 12.2925 10.166 12 10.166C11.7074 10.1661 11.4194 10.2433 11.166 10.3896C10.9128 10.536 10.7028 10.7466 10.5566 11C10.4105 11.2534 10.3329 11.5405 10.333 11.833L14.917 11.834C15.1379 11.8341 15.3497 11.9219 15.5059 12.0781C15.662 12.2344 15.75 12.4461 15.75 12.667V16.834C15.7499 17.0549 15.6621 17.2666 15.5059 17.4229C15.3497 17.5791 15.1379 17.6669 14.917 17.667H9.08301C8.86211 17.6669 8.65034 17.5791 8.49414 17.4229C8.33794 17.2666 8.25006 17.0549 8.25 16.834V12.667C8.25 12.446 8.33786 12.2334 8.49414 12.0771C8.65033 11.921 8.86219 11.8331 9.08301 11.833H9.5C9.50009 11.1701 9.76366 10.5342 10.2324 10.0654C10.7012 9.59669 11.337 9.33301 12 9.33301ZM12 13.5C11.8167 13.5 11.6386 13.5604 11.4932 13.6719C11.3478 13.7834 11.2429 13.9402 11.1953 14.1172C11.1478 14.2944 11.1603 14.4829 11.2305 14.6523C11.3006 14.8216 11.4244 14.963 11.583 15.0547V15.583C11.583 15.6934 11.627 15.7998 11.7051 15.8779C11.7832 15.9561 11.8895 16 12 16C12.1105 16 12.2168 15.9561 12.2949 15.8779C12.373 15.7998 12.417 15.6934 12.417 15.583V15.0547C12.5756 14.963 12.6994 14.8216 12.7695 14.6523C12.8397 14.4829 12.8522 14.2944 12.8047 14.1172C12.7571 13.9402 12.6522 13.7834 12.5068 13.6719C12.3614 13.5604 12.1833 13.5 12 13.5ZM15.2988 10.5918L15.7021 10.7002C15.8046 10.7324 15.8906 10.8033 15.9424 10.8975C15.9941 10.9917 16.0074 11.1022 15.9795 11.2061C15.9516 11.3099 15.885 11.3994 15.793 11.4551C15.701 11.5107 15.5903 11.5285 15.4854 11.5049L15.084 11.3975C14.9778 11.3685 14.8869 11.2985 14.832 11.2031C14.7772 11.1077 14.7626 10.994 14.791 10.8877C14.8195 10.7813 14.8891 10.6901 14.9844 10.6348C15.0795 10.5796 15.1925 10.564 15.2988 10.5918ZM14.7637 9.37109C14.8164 9.38521 14.8659 9.40923 14.9092 9.44238C14.9526 9.4757 14.9892 9.51803 15.0166 9.56543C15.0438 9.61271 15.0622 9.66465 15.0693 9.71875C15.0764 9.77286 15.0727 9.82813 15.0586 9.88086L15.0049 10.082C14.991 10.135 14.9667 10.1849 14.9336 10.2285C14.9004 10.2722 14.858 10.3093 14.8105 10.3369C14.7632 10.3643 14.7105 10.3824 14.6562 10.3896C14.6021 10.3968 14.5469 10.393 14.4941 10.3789C14.4411 10.3647 14.3912 10.3401 14.3477 10.3066C14.3041 10.2732 14.2676 10.2312 14.2402 10.1836C14.213 10.1361 14.1955 10.0836 14.1885 10.0293C14.1815 9.97487 14.1848 9.91916 14.1992 9.86621L14.2539 9.66504C14.2826 9.55854 14.3527 9.46728 14.4482 9.41211C14.5438 9.35713 14.6572 9.34264 14.7637 9.37109Z" fill="white"/>
 </svg>
+
 `;
 }
 

@@ -34,6 +34,26 @@ export default defineBackground(async () => {
         return { success: false, error: String(error) };
       }
     }
+
+    if (message.type === 'EXECUTE_PLUGIN') {
+      const { pluginId } = message;
+
+      try {
+        // Content script로 메시지 전송
+        const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+        if (tabs[0]?.id) {
+          await browser.tabs.sendMessage(tabs[0].id, {
+            type: 'EXECUTE_PLUGIN',
+            pluginId,
+          });
+          console.log(`✅ Plugin ${pluginId} execute message sent`);
+        }
+        return { success: true };
+      } catch (error) {
+        console.error(`❌ Failed to execute plugin ${pluginId}:`, error);
+        return { success: false, error: String(error) };
+      }
+    }
   });
 
   // Chrome Commands (단축키) 처리

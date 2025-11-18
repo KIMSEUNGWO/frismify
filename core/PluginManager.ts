@@ -115,7 +115,6 @@ export class PluginManager {
     const defaults: Record<string, any> = {};
     for (const [id, shortcut] of Object.entries(plugin.shortcuts)) {
       defaults[id] = {
-        enabled: true,
         keys: shortcut.keys, // 기본 단축키 저장
       };
     }
@@ -261,7 +260,7 @@ export class PluginManager {
       if (state.plugins[pluginId]) {
         // shortcut 상태가 없으면 생성
         if (!state.plugins[pluginId].shortcuts[shortcutId]) {
-          state.plugins[pluginId].shortcuts[shortcutId] = { enabled: true };
+          state.plugins[pluginId].shortcuts[shortcutId] = {};
           console.log('[PluginManager] Created new shortcut state');
         }
         // Vue Proxy를 일반 배열로 변환 (Chrome storage 호환성)
@@ -274,25 +273,6 @@ export class PluginManager {
     });
 
     console.log('[PluginManager] updateShortcutKeys completed');
-  }
-
-  /**
-   * 단축키 활성화/비활성화
-   */
-  public async toggleShortcut(
-    pluginId: string,
-    shortcutId: string,
-    enabled: boolean
-  ): Promise<void> {
-    await this.storage.updateState(state => {
-      if (state.plugins[pluginId]) {
-        if (!state.plugins[pluginId].shortcuts[shortcutId]) {
-          state.plugins[pluginId].shortcuts[shortcutId] = { enabled: true };
-        }
-        state.plugins[pluginId].shortcuts[shortcutId].enabled = enabled;
-      }
-      return state;
-    });
   }
 
   /**
@@ -357,6 +337,31 @@ export class PluginManager {
   }
 
   /**
+   * 플러그인 실행 (Popup 클릭 또는 단축키로 실행)
+   */
+  public async executePlugin(
+    pluginId: string,
+    ctx: ContentScriptContext
+  ): Promise<void> {
+    const plugin = this.plugins.get(pluginId);
+    if (!plugin) {
+      throw new Error(`Plugin ${pluginId} not registered`);
+    }
+
+    // onExecute 호출
+    if (plugin.onExecute) {
+      try {
+        await plugin.onExecute.execute(ctx);
+        console.log(`[PluginManager] Plugin ${pluginId} executed`);
+      } catch (error) {
+        console.error(`[PluginManager] Failed to execute plugin ${pluginId}:`, error);
+      }
+    } else {
+      console.warn(`[PluginManager] Plugin ${pluginId} has no onExecute handler`);
+    }
+  }
+
+  /**
    * 플러그인 정리 (Context 무효화 시)
    */
   public async cleanup(pluginId: string): Promise<void> {
@@ -396,20 +401,35 @@ export class PluginManager {
     const commands: Record<string, any> = {};
 
     this.plugins.forEach(plugin => {
-      if (!plugin.shortcuts) return;
-
-      Object.entries(plugin.shortcuts).forEach(([shortcutId, shortcut]) => {
-        const commandName = `${plugin.id}__${shortcutId}`;
-        const platformKeys = this.shortcut.toCommand(shortcut.keys);
+      // executeShortcut 추가
+      if (plugin.onExecute) {
+        const commandName = `${plugin.id}__execute`;
+        const platformKeys = this.shortcut.toCommand(plugin.onExecute.shortcut);
 
         commands[commandName] = {
           suggested_key: {
             windows: platformKeys.windows,
             mac: platformKeys.mac,
           },
-          description: shortcut.description || shortcut.name,
+          description: plugin.description,
         };
-      });
+      }
+
+      // 기존 shortcuts 추가
+      if (plugin.shortcuts) {
+        Object.entries(plugin.shortcuts).forEach(([shortcutId, shortcut]) => {
+          const commandName = `${plugin.id}__${shortcutId}`;
+          const platformKeys = this.shortcut.toCommand(shortcut.keys);
+
+          commands[commandName] = {
+            suggested_key: {
+              windows: platformKeys.windows,
+              mac: platformKeys.mac,
+            },
+            description: shortcut.description || shortcut.name,
+          };
+        });
+      }
     });
 
     return commands;
@@ -443,8 +463,20 @@ export class PluginManager {
 
     const { pluginId, shortcutId } = parsed;
     const plugin = this.plugins.get(pluginId);
-    if (!plugin || !plugin.shortcuts) {
-      console.warn(`[PluginManager] Plugin or shortcut not found: ${commandName}`);
+    if (!plugin) {
+      console.warn(`[PluginManager] Plugin not found: ${pluginId}`);
+      return;
+    }
+
+    // executeShortcut 처리
+    if (shortcutId === 'execute') {
+      await this.executePlugin(pluginId, ctx);
+      return;
+    }
+
+    // 일반 shortcuts 처리
+    if (!plugin.shortcuts) {
+      console.warn(`[PluginManager] Plugin ${pluginId} has no shortcuts`);
       return;
     }
 

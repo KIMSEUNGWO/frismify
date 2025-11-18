@@ -39,17 +39,38 @@ export default defineContentScript({
       }
     }
 
+    // Background에서 플러그인 실행 메시지 처리
+    browser.runtime.onMessage.addListener((message) => {
+      if (message.type === 'EXECUTE_PLUGIN') {
+        const { pluginId } = message;
+        console.log(`🚀 Executing plugin: ${pluginId}`);
+        manager.executePlugin(pluginId, ctx);
+      }
+    });
+
     // 전역 단축키 핸들러
     const handleShortcut = async (event: KeyboardEvent) => {
       for (const plugin of plugins) {
-        // 1. 플러그인이 enabled 상태인지 확인
+        // 1. executeShortcut 확인
+        if (plugin.onExecute) {
+          const isMatch = shortcut.matches(event, plugin.onExecute.shortcut);
+          if (isMatch) {
+            event.preventDefault();
+            event.stopPropagation();
+            console.log(`⌨️ Execute shortcut triggered: ${plugin.name}`);
+            await manager.executePlugin(plugin.id, ctx);
+            return;
+          }
+        }
+
+        // 2. 플러그인이 enabled 상태인지 확인
         const isEnabled = await manager.isEnabled(plugin.id);
         if (!isEnabled) {
           console.log(`[Content] Plugin ${plugin.id} is disabled, skipping`);
           continue;
         }
 
-        // 2. 플러그인에 단축키가 있는지 확인
+        // 3. 플러그인에 단축키가 있는지 확인
         if (!plugin.shortcuts) continue;
 
         // 3. 각 단축키 확인
@@ -60,13 +81,7 @@ export default defineContentScript({
 
           console.log(`[Content] Checking shortcut ${plugin.id}.${shortcutId}:`, {
             shortcutState,
-            enabled: shortcutState?.enabled,
           });
-
-          if (shortcutState?.enabled === false) {
-            console.log(`[Content] Shortcut ${shortcutId} is disabled`);
-            continue;
-          }
 
           // 3-2. 커스텀 단축키가 있으면 사용, 없으면 기본 단축키 사용
           // Chrome storage에서 배열이 객체로 변환될 수 있으므로 배열로 변환

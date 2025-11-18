@@ -10,7 +10,7 @@
 
 import { PluginManager } from '../core';
 import { examplePlugin } from './implementations/example';
-import { copyProtectionBreakerPlugin } from './implementations/copy-protection-breaker';
+import { copyProtectionBreakerPlugin } from './implementations/copy-breaker';
 
 /**
  * 모든 플러그인 등록

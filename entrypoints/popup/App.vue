@@ -18,6 +18,7 @@
             :plugin="plugin"
             :enabled="pluginStates[plugin.id] || false"
             @toggle="togglePlugin"
+            @execute="executePlugin"
         />
       </div>
 
@@ -78,6 +79,15 @@ const togglePlugin = async (pluginId: string) => {
   });
 
   // Storage 변경은 listener를 통해 자동으로 반영됨
+}
+
+// 플러그인 실행
+const executePlugin = async (pluginId: string) => {
+  // Background로 메시지 전송
+  await browser.runtime.sendMessage({
+    type: 'EXECUTE_PLUGIN',
+    pluginId,
+  });
 }
 
 const openSettings = () => browser.runtime.openOptionsPage();

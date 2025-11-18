@@ -38,6 +38,12 @@ export interface Plugin {
   // 정리 로직
   onCleanup?: () => void | Promise<void>;
 
+  // 플러그인 실행 (Popup 클릭 시 또는 단축키로 실행)
+  onExecute?: {
+    execute: (ctx: ContentScriptContext) => void | Promise<void>,
+    shortcut: ShortcutKey[]
+  },
+
   // === 설정 스키마 ===
   settings?: {
     [settingId: string]: PluginSetting;
@@ -47,6 +53,7 @@ export interface Plugin {
   shortcuts?: {
     [shortcutId: string]: PluginShortcut;
   };
+
 }
 
 /**
@@ -94,7 +101,6 @@ export interface PluginState {
  * 단축키 상태
  */
 export interface ShortcutState {
-  enabled: boolean;
   keys?: ShortcutKey[]; // 사용자 커스텀 단축키
 }
 

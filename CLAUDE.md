@@ -294,6 +294,41 @@ onActivate: async (ctx) => {
 },
 ```
 
+### One-Shot Plugin Execution
+
+For plugins that execute once on-demand (like opening a color picker or taking a screenshot), use `onExecute` instead of `onActivate`:
+
+```typescript
+export const myPlugin: Plugin = {
+  // ... metadata ...
+
+  // Execute once with shortcut (no persistent state)
+  onExecute: {
+    execute: async (ctx) => {
+      // One-time execution logic
+      const picker = createColorPicker();
+      picker.open();
+    },
+    shortcut: ['Cmd', 'Shift', 'C']
+  },
+
+  // Don't use onActivate for one-shot plugins
+};
+```
+
+**Difference:**
+- `onActivate`: Runs when plugin is enabled, maintains persistent state (e.g., grid overlay always visible)
+- `onExecute`: Runs once when triggered via shortcut or popup click, no persistent state (e.g., color picker opens temporarily)
+
+**Triggering from Popup:**
+```typescript
+// In Popup Vue component
+browser.runtime.sendMessage({
+  type: 'EXECUTE_PLUGIN',
+  pluginId: 'my-plugin'
+});
+```
+
 ## WXT Framework
 
 WXT uses convention-based file structure where files in `entrypoints/` define extension parts:
@@ -302,6 +337,23 @@ WXT uses convention-based file structure where files in `entrypoints/` define ex
 - **content/index.ts**: Content script (runs on web pages)
 - **popup/**: Popup UI (click extension icon)
 - **options/**: Full-page settings
+
+### WXT Configuration
+
+The `wxt.config.ts` includes important customizations:
+
+```typescript
+hooks: {
+  'build:manifestGenerated': async (wxt, manifest) => {
+    // Customize manifest before build
+    if (manifest.options_ui) {
+      manifest.options_ui.open_in_tab = true; // Options page opens in new tab
+    }
+  }
+}
+```
+
+**Important**: Keyboard shortcuts are handled via `keydown` listeners in content scripts, NOT via Chrome's Commands API. This prevents Chrome from intercepting keypresses that might conflict with webpage functionality.
 
 ### Background Script
 
@@ -367,6 +419,81 @@ async function togglePlugin(pluginId: string) {
   await manager.togglePlugin(pluginId);
 }
 </script>
+```
+
+### Reusable Vue Components
+
+The project includes reusable UI components in `/components/`:
+
+- **`<ToggleSwitch>`**: Plugin enable/disable toggle switch
+- **`<TierTag>`**: Free/Pro badge display
+- **`<ShortcutBadge>`**: Display keyboard shortcuts with platform-specific formatting (⌘⇧P on Mac, Ctrl + Shift + P on Windows)
+
+Usage:
+```vue
+<script setup lang="ts">
+import ToggleSwitch from '@/components/ToggleSwitch.vue';
+import TierTag from '@/components/TierTag.vue';
+import ShortcutBadge from '@/components/ShortcutBadge.vue';
+</script>
+
+<template>
+  <ToggleSwitch v-model="enabled" />
+  <TierTag :tier="plugin.tier" />
+  <ShortcutBadge :keys="['Cmd', 'Shift', 'P']" />
+</template>
+```
+
+## Message Passing Architecture
+
+Browser extension contexts are isolated and communicate via `browser.runtime.sendMessage`:
+
+### Popup/Options → Background → Content Script
+
+**Toggle Plugin State:**
+```typescript
+// From Popup/Options
+browser.runtime.sendMessage({
+  type: 'TOGGLE_PLUGIN',
+  pluginId: 'my-plugin'
+});
+
+// Background receives and updates state
+browser.runtime.onMessage.addListener(async (message) => {
+  if (message.type === 'TOGGLE_PLUGIN') {
+    await manager.togglePlugin(message.pluginId);
+  }
+});
+```
+
+**Execute Plugin (One-Shot):**
+```typescript
+// From Popup/Options
+browser.runtime.sendMessage({
+  type: 'EXECUTE_PLUGIN',
+  pluginId: 'my-plugin'
+});
+
+// Background forwards to active tab
+const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+await browser.tabs.sendMessage(tabs[0].id, {
+  type: 'EXECUTE_PLUGIN',
+  pluginId: 'my-plugin'
+});
+
+// Content Script receives and executes
+browser.runtime.onMessage.addListener((message) => {
+  if (message.type === 'EXECUTE_PLUGIN') {
+    manager.executePlugin(message.pluginId, ctx);
+  }
+});
+```
+
+**Flow:**
+```
+Popup (User clicks)
+  → sendMessage → Background (Routes message)
+  → sendMessage → Content Script (Executes plugin)
 ```
 
 ## Type System
