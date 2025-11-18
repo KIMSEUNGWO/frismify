@@ -52,7 +52,7 @@ export default defineContentScript({
     const handleShortcut = async (event: KeyboardEvent) => {
       for (const plugin of plugins) {
         // 1. executeShortcut 확인
-        if (plugin.onExecute) {
+        if (plugin.onExecute?.shortcut) {
           const isMatch = shortcut.matches(event, plugin.onExecute.shortcut);
           if (isMatch) {
             event.preventDefault();

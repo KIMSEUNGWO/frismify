@@ -41,7 +41,8 @@ export interface Plugin {
   // 플러그인 실행 (Popup 클릭 시 또는 단축키로 실행)
   onExecute?: {
     execute: (ctx: ContentScriptContext) => void | Promise<void>,
-    shortcut: ShortcutKey[]
+    shortcut?: ShortcutKey[],
+    customKey?: ShortcutKey[],
   },
 
   // === 설정 스키마 ===

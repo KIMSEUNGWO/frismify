@@ -110,14 +110,24 @@ export class PluginManager {
    * 플러그인의 기본 단축키 상태 가져오기
    */
   private getDefaultShortcuts(plugin: Plugin): Record<string, any> {
-    if (!plugin.shortcuts) return {};
-
     const defaults: Record<string, any> = {};
-    for (const [id, shortcut] of Object.entries(plugin.shortcuts)) {
-      defaults[id] = {
-        keys: shortcut.keys, // 기본 단축키 저장
+
+    // 일반 shortcuts
+    if (plugin.shortcuts) {
+      for (const [id, shortcut] of Object.entries(plugin.shortcuts)) {
+        defaults[id] = {
+          keys: shortcut.keys, // 기본 단축키 저장
+        };
+      }
+    }
+
+    // onExecute shortcut (execute라는 ID로 저장)
+    if (plugin.onExecute?.shortcut) {
+      defaults['execute'] = {
+        keys: plugin.onExecute.shortcut,
       };
     }
+
     return defaults;
   }
 
@@ -283,6 +293,20 @@ export class PluginManager {
     shortcutId: string
   ): Promise<void> {
     const plugin = this.plugins.get(pluginId);
+
+    // onExecute shortcut 리셋
+    if (shortcutId === 'execute' && plugin?.onExecute?.shortcut) {
+      const defaultKeys = plugin.onExecute.shortcut;
+      await this.storage.updateState(state => {
+        if (state.plugins[pluginId]?.shortcuts['execute']) {
+          state.plugins[pluginId].shortcuts['execute'].keys = defaultKeys;
+        }
+        return state;
+      });
+      return;
+    }
+
+    // 일반 shortcut 리셋
     if (!plugin?.shortcuts?.[shortcutId]) return;
 
     const defaultKeys = plugin.shortcuts[shortcutId].keys;
@@ -402,7 +426,7 @@ export class PluginManager {
 
     this.plugins.forEach(plugin => {
       // executeShortcut 추가
-      if (plugin.onExecute) {
+      if (plugin.onExecute?.shortcut) {
         const commandName = `${plugin.id}__execute`;
         const platformKeys = this.shortcut.toCommand(plugin.onExecute.shortcut);
 

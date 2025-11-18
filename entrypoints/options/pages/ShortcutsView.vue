@@ -18,10 +18,18 @@
             <h2 class="plugin-name">{{ plugin.name }}</h2>
             <span class="plugin-version">v{{ plugin.version }}</span>
           </div>
+          <ShortcutEdit
+              v-if="plugin.onExecute?.shortcut"
+              :plugin-id="plugin.id"
+              shortcut-id="execute"
+              :shortcut="plugin.onExecute.shortcut"
+              :config="config"
+              @updated="loadPlugins"
+          />
         </div>
 
         <!-- 단축키 목록 -->
-        <div class="shortcuts-grid">
+        <div class="shortcuts-grid" v-if="plugin.shortcuts">
           <ShortcutItem
             v-for="(shortcut, shortcutId) in plugin.shortcuts"
             :key="String(shortcutId)"
@@ -43,6 +51,7 @@ import { PluginManager } from '@/core';
 import { registerPlugins } from '@/plugins';
 import type { AppState, Plugin, PluginState } from '@/types';
 import ShortcutItem from '../components/ShortcutItem.vue';
+import ShortcutEdit from "@/entrypoints/options/components/ShortcutEdit.vue";
 
 const manager = PluginManager.getInstance();
 
@@ -95,7 +104,7 @@ onUnmounted(() => {
 <style scoped>
 .shortcuts-view {
   padding: 32px;
-  max-width: 1200px;
+  max-width: 1000px;
   margin: 0 auto;
 }
 
@@ -130,9 +139,9 @@ onUnmounted(() => {
 }
 
 .section-header {
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .plugin-title-row {
@@ -163,6 +172,9 @@ onUnmounted(() => {
 }
 
 .shortcuts-grid {
+  margin-top: 26px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   gap: 12px;

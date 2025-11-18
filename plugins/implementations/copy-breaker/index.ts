@@ -87,7 +87,8 @@ function activateProtection(ctx: any) {
     };
 
     // 이벤트 리스너를 capture phase에 등록
-    const events = ['contextmenu', 'selectstart', 'copy', 'cut', 'paste', 'mousedown', 'mouseup', 'keydown', 'keyup', 'dragstart'];
+    // 주의: keydown/keyup은 제외 - Prismify 자체 단축키와 충돌 방지
+    const events = ['contextmenu', 'selectstart', 'copy', 'cut', 'paste', 'mousedown', 'mouseup', 'dragstart'];
     events.forEach(eventName => {
         document.addEventListener(eventName, forceEnable, true);
         window.addEventListener(eventName, forceEnable, true);
