@@ -9,8 +9,8 @@
             <h3 class="plugin-name">{{ plugin.name }}</h3>
           </div>
           <p class="plugin-description">{{ plugin.description }}</p>
-          <div v-if="plugin.onExecute" class="execute-shortcut">
-            <ShortcutBadge :keys="plugin.onExecute.shortcut" variant="badge" :font-size="10" />
+          <div v-if="executeShortcutKeys" class="execute-shortcut">
+            <ShortcutBadge :keys="executeShortcutKeys" variant="badge" :font-size="10" />
           </div>
         </div>
       </div>
@@ -27,13 +27,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import type { Plugin } from '@/types';
+import { ref, onMounted, computed } from 'vue';
+import type { Plugin, PluginState } from '@/types';
+import { PluginManager } from '@/core';
 import ToggleSwitch from '@/components/ToggleSwitch.vue';
 import TierTag from '@/components/TierTag.vue';
 import ShortcutBadge from '@/components/ShortcutBadge.vue';
 
+const manager = PluginManager.getInstance();
 const iconContainer = ref<HTMLDivElement>();
+const pluginState = ref<PluginState | null>(null);
 
 const props = defineProps<{
   plugin: Plugin;
@@ -45,16 +48,26 @@ const emit = defineEmits<{
   execute: [pluginId: string];
 }>();
 
+// 등록된 execute 단축키가 있는지 확인
+const executeShortcutKeys = computed(() => {
+  if (!props.plugin.onExecute || !pluginState.value) return null;
+  const keys = pluginState.value.shortcuts?.['execute']?.keys;
+  return keys && keys.length > 0 ? keys : null;
+});
+
 const handleCardClick = () => {
   if (props.plugin.onExecute) {
     emit('execute', props.plugin.id);
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
   if (props.plugin.icon && iconContainer.value) {
     props.plugin.icon(iconContainer.value);
   }
+
+  // 플러그인 상태 로드
+  pluginState.value = await manager.getPluginState(props.plugin.id);
 })
 
 </script>

@@ -39,10 +39,9 @@ export interface Plugin {
   onCleanup?: () => void | Promise<void>;
 
   // 플러그인 실행 (Popup 클릭 시 또는 단축키로 실행)
+  // 단축키는 PluginState.shortcuts['execute']에 사용자가 등록
   onExecute?: {
-    execute: (ctx: ContentScriptContext) => void | Promise<void>,
-    shortcut?: ShortcutKey[],
-    customKey?: ShortcutKey[],
+    execute: (ctx: ContentScriptContext) => void | Promise<void>
   },
 
   // === 설정 스키마 ===
@@ -70,11 +69,11 @@ export interface PluginSetting {
 
 /**
  * 플러그인 단축키
+ * keys는 PluginState에만 저장 (사용자가 등록한 단축키)
  */
 export interface PluginShortcut {
   name: string;
   description: string;
-  keys: ShortcutKey[]; // ['Cmd', 'Shift', 'P']
   handler: (event: KeyboardEvent, ctx: ContentScriptContext) => void | Promise<void>;
 }
 

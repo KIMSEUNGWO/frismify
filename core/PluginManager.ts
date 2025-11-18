@@ -108,27 +108,10 @@ export class PluginManager {
 
   /**
    * 플러그인의 기본 단축키 상태 가져오기
+   * 기본 단축키 없음 - 사용자가 직접 등록하는 방식
    */
   private getDefaultShortcuts(plugin: Plugin): Record<string, any> {
-    const defaults: Record<string, any> = {};
-
-    // 일반 shortcuts
-    if (plugin.shortcuts) {
-      for (const [id, shortcut] of Object.entries(plugin.shortcuts)) {
-        defaults[id] = {
-          keys: shortcut.keys, // 기본 단축키 저장
-        };
-      }
-    }
-
-    // onExecute shortcut (execute라는 ID로 저장)
-    if (plugin.onExecute?.shortcut) {
-      defaults['execute'] = {
-        keys: plugin.onExecute.shortcut,
-      };
-    }
-
-    return defaults;
+    return {}; // 빈 객체 반환
   }
 
   /**
@@ -286,34 +269,15 @@ export class PluginManager {
   }
 
   /**
-   * 단축키 커스텀 키 리셋 (기본 키로 복원)
+   * 단축키 삭제 (keys를 undefined로 설정)
    */
-  public async resetShortcutKeys(
+  public async deleteShortcutKeys(
     pluginId: string,
     shortcutId: string
   ): Promise<void> {
-    const plugin = this.plugins.get(pluginId);
-
-    // onExecute shortcut 리셋
-    if (shortcutId === 'execute' && plugin?.onExecute?.shortcut) {
-      const defaultKeys = plugin.onExecute.shortcut;
-      await this.storage.updateState(state => {
-        if (state.plugins[pluginId]?.shortcuts['execute']) {
-          state.plugins[pluginId].shortcuts['execute'].keys = defaultKeys;
-        }
-        return state;
-      });
-      return;
-    }
-
-    // 일반 shortcut 리셋
-    if (!plugin?.shortcuts?.[shortcutId]) return;
-
-    const defaultKeys = plugin.shortcuts[shortcutId].keys;
-
     await this.storage.updateState(state => {
-      if (state.plugins[pluginId]?.shortcuts[shortcutId]) {
-        state.plugins[pluginId].shortcuts[shortcutId].keys = defaultKeys;
+      if (state.plugins[pluginId]?.shortcuts?.[shortcutId]) {
+        delete state.plugins[pluginId].shortcuts[shortcutId].keys;
       }
       return state;
     });
@@ -420,40 +384,39 @@ export class PluginManager {
 
   /**
    * Chrome Commands API용 단축키 목록 생성
+   * 사용자가 등록한 단축키만 포함
    */
-  public getCommands(): Record<string, any> {
+  public async getCommands(): Promise<Record<string, any>> {
     const commands: Record<string, any> = {};
+    const state = await this.storage.getState();
 
     this.plugins.forEach(plugin => {
-      // executeShortcut 추가
-      if (plugin.onExecute?.shortcut) {
-        const commandName = `${plugin.id}__execute`;
-        const platformKeys = this.shortcut.toCommand(plugin.onExecute.shortcut);
+      const pluginState = state.plugins[plugin.id];
+      if (!pluginState) return;
+
+      // 등록된 단축키만 추가
+      Object.entries(pluginState.shortcuts || {}).forEach(([shortcutId, shortcutState]) => {
+        if (!shortcutState.keys || shortcutState.keys.length === 0) return;
+
+        const commandName = `${plugin.id}__${shortcutId}`;
+        const platformKeys = this.shortcut.toCommand(shortcutState.keys);
+
+        // shortcut 메타데이터 찾기
+        let description = `${plugin.name} - ${shortcutId}`;
+        if (shortcutId === 'execute' && plugin.onExecute) {
+          description = plugin.description;
+        } else if (plugin.shortcuts?.[shortcutId]) {
+          description = plugin.shortcuts[shortcutId].description || plugin.shortcuts[shortcutId].name;
+        }
 
         commands[commandName] = {
           suggested_key: {
             windows: platformKeys.windows,
             mac: platformKeys.mac,
           },
-          description: plugin.description,
+          description,
         };
-      }
-
-      // 기존 shortcuts 추가
-      if (plugin.shortcuts) {
-        Object.entries(plugin.shortcuts).forEach(([shortcutId, shortcut]) => {
-          const commandName = `${plugin.id}__${shortcutId}`;
-          const platformKeys = this.shortcut.toCommand(shortcut.keys);
-
-          commands[commandName] = {
-            suggested_key: {
-              windows: platformKeys.windows,
-              mac: platformKeys.mac,
-            },
-            description: shortcut.description || shortcut.name,
-          };
-        });
-      }
+      });
     });
 
     return commands;

@@ -61,7 +61,6 @@ export const copyProtectionBreakerPlugin: Plugin = {
                 features: []
             });
         },
-        shortcut: ['Cmd', 'Shift', 'Y'],
     },
 
     // === 라이프사이클 ===

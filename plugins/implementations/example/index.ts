@@ -59,7 +59,6 @@ export const examplePlugin: Plugin = {
     toggle: {
       name: 'Toggle Example',
       description: 'Toggle example plugin functionality',
-      keys: ['Cmd', 'Shift', 'E'],
       handler: async (event, ctx) => {
         console.log('🎯 Example shortcut triggered!');
         alert('Example Plugin activated via shortcut!');

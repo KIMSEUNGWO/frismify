@@ -19,10 +19,9 @@
             <span class="plugin-version">v{{ plugin.version }}</span>
           </div>
           <ShortcutEdit
-              v-if="plugin.onExecute?.shortcut"
+              v-if="plugin.onExecute"
               :plugin-id="plugin.id"
               shortcut-id="execute"
-              :shortcut="plugin.onExecute.shortcut"
               :config="config"
               @updated="loadPlugins"
           />

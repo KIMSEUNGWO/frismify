@@ -51,78 +51,48 @@ export default defineContentScript({
     // 전역 단축키 핸들러
     const handleShortcut = async (event: KeyboardEvent) => {
       for (const plugin of plugins) {
-        // 1. executeShortcut 확인
-        if (plugin.onExecute?.shortcut) {
-          const isMatch = shortcut.matches(event, plugin.onExecute.shortcut);
-          if (isMatch) {
-            event.preventDefault();
-            event.stopPropagation();
-            console.log(`⌨️ Execute shortcut triggered: ${plugin.name}`);
-            await manager.executePlugin(plugin.id, ctx);
-            return;
-          }
-        }
+        const state = await manager.getPluginState(plugin.id);
+        if (!state?.shortcuts) continue;
 
-        // 2. 플러그인이 enabled 상태인지 확인
-        const isEnabled = await manager.isEnabled(plugin.id);
-        if (!isEnabled) {
-          console.log(`[Content] Plugin ${plugin.id} is disabled, skipping`);
-          continue;
-        }
+        // 1. 등록된 단축키 확인 (onExecute의 'execute' 포함)
+        for (const [shortcutId, shortcutState] of Object.entries(state.shortcuts)) {
+          // 단축키가 등록되지 않았으면 스킵
+          if (!shortcutState.keys || shortcutState.keys.length === 0) continue;
 
-        // 3. 플러그인에 단축키가 있는지 확인
-        if (!plugin.shortcuts) continue;
-
-        // 3. 각 단축키 확인
-        for (const [shortcutId, shortcutDef] of Object.entries(plugin.shortcuts)) {
-          // 3-1. 단축키 상태 확인
-          const state = await manager.getPluginState(plugin.id);
-          const shortcutState = state?.shortcuts[shortcutId];
-
-          console.log(`[Content] Checking shortcut ${plugin.id}.${shortcutId}:`, {
-            shortcutState,
-          });
-
-          // 3-2. 커스텀 단축키가 있으면 사용, 없으면 기본 단축키 사용
           // Chrome storage에서 배열이 객체로 변환될 수 있으므로 배열로 변환
-          let keys = shortcutDef.keys;
-          if (shortcutState?.keys) {
-            keys = Array.isArray(shortcutState.keys)
-              ? shortcutState.keys
-              : Object.values(shortcutState.keys);
-          }
+          const keys = Array.isArray(shortcutState.keys)
+            ? shortcutState.keys
+            : Object.values(shortcutState.keys);
 
-          console.log(`[Content] Testing keys:`, {
-            keys,
-            isArray: Array.isArray(keys),
-            customKeys: shortcutState?.keys,
-            defaultKeys: shortcutDef.keys,
-          });
-
-          // 디버깅: 키 이벤트 정보 출력
-          console.log(`[Content] KeyboardEvent:`, {
-            key: event.key,
-            code: event.code,
-            ctrlKey: event.ctrlKey,
-            metaKey: event.metaKey,
-            shiftKey: event.shiftKey,
-            altKey: event.altKey,
-          });
-
-          // 3-3. 단축키 매칭 확인
+          // 단축키 매칭 확인
           const isMatch = shortcut.matches(event, keys);
-          console.log(`[Content] Match result:`, isMatch);
 
           if (isMatch) {
             event.preventDefault();
             event.stopPropagation();
 
-            console.log(`⌨️ Shortcut triggered: ${plugin.name} - ${shortcutDef.name}`);
+            // execute shortcut 처리
+            if (shortcutId === 'execute' && plugin.onExecute) {
+              console.log(`⌨️ Execute shortcut triggered: ${plugin.name}`);
+              await manager.executePlugin(plugin.id, ctx);
+              return;
+            }
 
-            try {
-              await shortcutDef.handler(event, ctx);
-            } catch (error) {
-              console.error(`❌ Shortcut handler error (${plugin.id}.${shortcutId}):`, error);
+            // 일반 shortcut 처리 (enabled 상태 확인)
+            const isEnabled = await manager.isEnabled(plugin.id);
+            if (!isEnabled) {
+              console.log(`[Content] Plugin ${plugin.id} is disabled, skipping`);
+              continue;
+            }
+
+            const shortcutDef = plugin.shortcuts?.[shortcutId];
+            if (shortcutDef) {
+              console.log(`⌨️ Shortcut triggered: ${plugin.name} - ${shortcutDef.name}`);
+              try {
+                await shortcutDef.handler(event, ctx);
+              } catch (error) {
+                console.error(`❌ Shortcut handler error (${plugin.id}.${shortcutId}):`, error);
+              }
             }
 
             return; // 첫 번째 매칭된 단축키만 실행

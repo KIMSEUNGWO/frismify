@@ -8,7 +8,6 @@
     <ShortcutEdit
       :plugin-id="pluginId"
       :shortcut-id="shortcutId"
-      :shortcut="shortcut.keys"
       :config="config"
       @updated="emit('updated')"
     />

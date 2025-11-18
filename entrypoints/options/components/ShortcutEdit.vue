@@ -2,7 +2,15 @@
   <div class="shortcut-edit">
     <!-- 단축키 버튼 -->
     <div class="shortcut-key-wrapper">
+      <button
+        v-if="!displayKeys"
+        class="shortcut-badge-empty"
+        @click="openPopover"
+      >
+        No shortcut
+      </button>
       <ShortcutBadge
+        v-else
         :keys="displayKeys"
         variant="button"
         @click="openPopover"
@@ -40,14 +48,14 @@
       </div>
     </div>
 
-    <!-- 리셋 버튼 (커스텀 키가 있을 때만 표시) -->
+    <!-- 삭제 버튼 (단축키가 등록되어 있을 때만 표시) -->
     <button
-      v-if="hasCustomKeys"
-      class="btn-reset"
-      @click="handleReset"
-      title="Reset to default"
+      v-if="hasShortcut"
+      class="btn-delete"
+      @click="handleDelete"
+      title="Delete shortcut"
     >
-      ↻
+      ×
     </button>
 
     <!-- 외부 클릭 감지 (팝오버 닫기) -->
@@ -68,7 +76,6 @@ import ShortcutBadge from '@/components/ShortcutBadge.vue';
 const props = defineProps<{
   pluginId: string;
   shortcutId: string;
-  shortcut: ShortcutKey[];
   config: PluginState;
 }>();
 
@@ -84,28 +91,15 @@ const inputRef = ref<HTMLInputElement | null>(null);
 const editingKeys = ref<ShortcutKey[]>([]);
 const editingDisplayKey = ref('');
 
-// 표시할 단축키 키 배열
+// 표시할 단축키 키 배열 (등록된 키만)
 const displayKeys = computed(() => {
-  const customKeys = props.config.shortcuts?.[props.shortcutId]?.keys;
-
-  let keys = props.shortcut;
-  if (customKeys) {
-    if (Array.isArray(customKeys) && customKeys.length > 0) {
-      keys = customKeys;
-    } else if (typeof customKeys === 'object') {
-      const converted = Object.values(customKeys);
-      if (converted.length > 0) {
-        keys = converted;
-      }
-    }
-  }
-
-  return keys;
+  const keys = props.config.shortcuts?.[props.shortcutId]?.keys;
+  return keys && keys.length > 0 ? keys : null;
 });
 
-// 커스텀 키가 있는지
-const hasCustomKeys = computed(() => {
-  return !!props.config.shortcuts?.[props.shortcutId]?.keys;
+// 단축키가 등록되어 있는지
+const hasShortcut = computed(() => {
+  return !!displayKeys.value;
 });
 
 // 팝오버 열기
@@ -160,9 +154,9 @@ const saveOnKeyUp = async (event: KeyboardEvent) => {
   }
 };
 
-// 리셋
-const handleReset = async () => {
-  await manager.resetShortcutKeys(props.pluginId, props.shortcutId);
+// 삭제
+const handleDelete = async () => {
+  await manager.deleteShortcutKeys(props.pluginId, props.shortcutId);
   emit('updated');
 };
 
@@ -188,6 +182,22 @@ watch(isEditing, async (newVal) => {
 /* 단축키 버튼 및 팝오버 */
 .shortcut-key-wrapper {
   position: relative;
+}
+
+.shortcut-badge-empty {
+  padding: 6px 12px;
+  background: var(--card-bg-hover, #f3f4f6);
+  color: var(--font-color-2, #666);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.shortcut-badge-empty:hover {
+  background: var(--border-color, #e5e7eb);
+  border-color: var(--font-color-2, #999);
 }
 
 /* 팝오버 오버레이 */
@@ -233,20 +243,27 @@ watch(isEditing, async (newVal) => {
   height: 0;
 }
 
-/* Reset 버튼 */
-.btn-reset {
-  padding: 6px 10px;
+/* Delete 버튼 */
+.btn-delete {
+  width: 24px;
+  height: 24px;
+  padding: 0;
   background: var(--border-color, #e5e7eb);
   color: var(--font-color-1, #1a1a1a);
   border: none;
-  border-radius: 6px;
-  font-size: 16px;
+  border-radius: 4px;
+  font-size: 20px;
+  line-height: 1;
   cursor: pointer;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.btn-reset:hover {
-  background: #d1d5db;
+.btn-delete:hover {
+  background: #ef4444;
+  color: white;
 }
 
 /* 키 프리뷰 */
