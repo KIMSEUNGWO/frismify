@@ -19,6 +19,7 @@ import type { Plugin, PluginState, AppState } from '../types';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { StorageManager } from './StorageManager';
 import { ShortcutManager } from './ShortcutManager';
+import {modalManager} from "@/core/ModalManager";
 
 export class PluginManager {
   private static instance: PluginManager;
@@ -119,27 +120,6 @@ export class PluginManager {
    */
   public getPlugins(): Plugin[] {
     return Array.from(this.plugins.values());
-  }
-
-  /**
-   * ID로 플러그인 찾기
-   */
-  public getPlugin(id: string): Plugin | undefined {
-    return this.plugins.get(id);
-  }
-
-  /**
-   * 카테고리별 플러그인 찾기
-   */
-  public getPluginsByCategory(category: string): Plugin[] {
-    return this.getPlugins().filter(p => p.category === category);
-  }
-
-  /**
-   * 티어별 플러그인 찾기
-   */
-  public getPluginsByTier(tier: 'free' | 'pro'): Plugin[] {
-    return this.getPlugins().filter(p => p.tier === tier);
   }
 
   // ========================================
@@ -290,18 +270,11 @@ export class PluginManager {
   /**
    * 플러그인 활성화 (Content Script에서 호출)
    */
-  public async activate(
-    pluginId: string,
-    ctx: ContentScriptContext
-  ): Promise<void> {
-    const plugin = this.plugins.get(pluginId);
-    if (!plugin) {
-      throw new Error(`Plugin ${pluginId} not registered`);
-    }
+  public async activate(plugin: Plugin, ctx: ContentScriptContext): Promise<void> {
 
-    const isEnabled = await this.isEnabled(pluginId);
+    const isEnabled = await this.isEnabled(plugin.id);
     if (!isEnabled) {
-      console.log(`[PluginManager] Plugin ${pluginId} is disabled, skipping activation`);
+      console.log(`[PluginManager] Plugin ${plugin.id} is disabled, skipping activation`);
       return;
     }
 
@@ -309,17 +282,17 @@ export class PluginManager {
     if (plugin.onActivate) {
       try {
         await plugin.onActivate(ctx);
-        console.log(`[PluginManager] Plugin ${pluginId} activated`);
+        console.log(`[PluginManager] Plugin ${plugin.id} activated`);
 
         // cleanup 콜백 저장
         if (plugin.onCleanup) {
-          if (!this.cleanupCallbacks.has(pluginId)) {
-            this.cleanupCallbacks.set(pluginId, []);
+          if (!this.cleanupCallbacks.has(plugin.id)) {
+            this.cleanupCallbacks.set(plugin.id, []);
           }
-          this.cleanupCallbacks.get(pluginId)!.push(plugin.onCleanup);
+          this.cleanupCallbacks.get(plugin.id)!.push(plugin.onCleanup);
         }
       } catch (error) {
-        console.error(`[PluginManager] Failed to activate plugin ${pluginId}:`, error);
+        console.error(`[PluginManager] Failed to activate plugin ${plugin.id}:`, error);
       }
     }
   }
@@ -327,25 +300,26 @@ export class PluginManager {
   /**
    * 플러그인 실행 (Popup 클릭 또는 단축키로 실행)
    */
-  public async executePlugin(
-    pluginId: string,
-    ctx: ContentScriptContext
-  ): Promise<void> {
+  public async executePlugin(pluginId: string, ctx: ContentScriptContext): Promise<void> {
     const plugin = this.plugins.get(pluginId);
     if (!plugin) {
       throw new Error(`Plugin ${pluginId} not registered`);
     }
-
-    // onExecute 호출
-    if (plugin.onExecute) {
-      try {
-        await plugin.onExecute.execute(ctx);
-        console.log(`[PluginManager] Plugin ${pluginId} executed`);
-      } catch (error) {
-        console.error(`[PluginManager] Failed to execute plugin ${pluginId}:`, error);
-      }
-    } else {
+    if (!plugin.onExecute) {
       console.warn(`[PluginManager] Plugin ${pluginId} has no onExecute handler`);
+      return;
+    }
+
+    if (plugin.onExecute.type === 'OPEN_MODAL') {
+      modalManager.openModal(pluginId);
+      return;
+    }
+
+    try {
+      await plugin.onExecute.execute(ctx);
+      console.log(`[PluginManager] Plugin ${pluginId} executed`);
+    } catch (error) {
+      console.error(`[PluginManager] Failed to execute plugin ${pluginId}:`, error);
     }
   }
 
@@ -594,6 +568,10 @@ export class PluginManager {
 
     await this.storage.setState(newState);
     console.log(`[PluginManager] All plugins reinitialized (${plugins.length} plugins)`);
+  }
+
+  get(pluginId: string) : Plugin | undefined {
+    return this.plugins.get(pluginId);
   }
 }
 

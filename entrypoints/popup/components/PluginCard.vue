@@ -15,14 +15,6 @@
         </div>
       </div>
     </div>
-
-    <div class="plugin-extra">
-      <ToggleSwitch
-        :model-value="enabled"
-        @update:model-value="$emit('toggle', plugin.id)"
-        @click.stop
-      />
-    </div>
   </div>
 </template>
 
@@ -30,7 +22,6 @@
 import { ref, onMounted, computed } from 'vue';
 import type { Plugin, PluginState } from '@/types';
 import { PluginManager } from '@/core';
-import ToggleSwitch from '@/components/ToggleSwitch.vue';
 import TierTag from '@/components/TierTag.vue';
 import ShortcutBadge from '@/components/ShortcutBadge.vue';
 
@@ -40,11 +31,9 @@ const pluginState = ref<PluginState | undefined>(undefined);
 
 const props = defineProps<{
   plugin: Plugin;
-  enabled: boolean;
 }>();
 
 const emit = defineEmits<{
-  toggle: [pluginId: string];
   execute: [plugin: Plugin];
 }>();
 
@@ -74,9 +63,6 @@ onMounted(async () => {
 
 <style scoped>
 .plugin-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   padding: 16px 14px;
   border: 1px solid var(--border-color);
   background-color: var(--card-bg-color);
@@ -85,15 +71,11 @@ onMounted(async () => {
   cursor: pointer;
 }
 
-.plugin-card.has-execute {
-  cursor: pointer;
-}
-
 .plugin-card:hover {
   border: 1px solid var(--purple);
   background-color: var(--card-bg-hover);
   transform: translateY(-2px);
-  z-index: 2;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.1);
 }
 
 .plugin-info {
@@ -101,7 +83,7 @@ onMounted(async () => {
   align-items: start;
   justify-content: start;
   gap: 10px;
-  flex: 1;
+  width: 100%;
 }
 
 .plugin-header {

@@ -8,9 +8,10 @@
  * 3. registerPlugins() 함수에 추가
  */
 
-import { PluginManager } from '../core';
-import { examplePlugin } from './implementations/example';
-import { copyProtectionBreakerPlugin } from './implementations/copy-breaker';
+import { PluginManager } from '@/core';
+import { examplePlugin } from '@/plugins/implementations/example';
+import { copyProtectionBreakerPlugin } from '@/plugins/implementations/copy-breaker';
+import { colorPicker } from "@/plugins/implementations/color-picker";
 
 /**
  * 모든 플러그인 등록
@@ -22,10 +23,7 @@ export async function registerPlugins(): Promise<void> {
   // 플러그인 등록
   await manager.register(examplePlugin);
   await manager.register(copyProtectionBreakerPlugin);
-  // 여기에 추가 플러그인 등록
-  // await manager.register(cssSpyPlugin);
-  // await manager.register(colorPickerPlugin);
-  // ...
+  await manager.register(colorPicker);
 
   console.log(`[Plugins] ${manager.getPluginCount()} plugins registered`);
 }

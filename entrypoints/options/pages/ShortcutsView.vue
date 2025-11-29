@@ -19,7 +19,7 @@
             <span class="plugin-version">v{{ plugin.version }}</span>
           </div>
           <ShortcutEdit
-              v-if="plugin.onExecute"
+              v-if="plugin.onExecute?.type === 'EXECUTE_PLUGIN'"
               :plugin-id="plugin.id"
               shortcut-id="execute"
               :config="config"
@@ -58,7 +58,7 @@ const pluginsWithShortcuts = ref<Array<{ plugin: Plugin; config: PluginState }>>
 
 // 플러그인 로드
 const loadPlugins = async () => {
-  const plugins = manager.getPlugins().filter(p => p.shortcuts || p.onActivate);
+  const plugins = manager.getPlugins().filter(p => p.shortcuts || p.onExecute);
   const result = [];
 
   for (const plugin of plugins) {

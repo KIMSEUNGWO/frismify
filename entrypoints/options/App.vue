@@ -12,6 +12,7 @@ import MenuView from "@/entrypoints/options/components/MenuView.vue";
 <style scoped>
 main {
   padding-left: 260px;
-  width: 100vw;
+  min-height: 100vh;
+  box-sizing: border-box;
 }
 </style>

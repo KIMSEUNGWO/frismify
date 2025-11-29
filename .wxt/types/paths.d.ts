@@ -20,6 +20,8 @@ declare module "wxt/browser" {
     | "/icon/96.png"
     | "/icon_eye.svg"
     | "/icon_gear.svg"
+    | "/icon_tools.svg"
+    | "/icon_water.svg"
     | "/logo.svg"
     | "/options.html"
     | "/popup.html"

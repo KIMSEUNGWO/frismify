@@ -41,6 +41,7 @@ The architecture follows these principles:
 frismify/
 ├── core/                    # Core architecture (DO NOT MODIFY unless refactoring)
 │   ├── PluginManager.ts    # Facade for all plugin operations
+│   ├── ModalManager.ts     # Modal window management
 │   ├── ShortcutManager.ts  # Keyboard shortcut handling
 │   ├── StorageManager.ts   # browser.storage.local wrapper
 │   └── index.ts            # Public exports
@@ -52,7 +53,10 @@ frismify/
 │
 ├── entrypoints/            # WXT entrypoints (convention-based)
 │   ├── background.ts       # Service worker
-│   ├── content/index.ts    # Content script
+│   ├── content/            # Content script
+│   │   ├── index.ts       # Main content script
+│   │   ├── App.vue        # Modal container component
+│   │   └── router/        # Vue Router for modal views
 │   ├── popup/              # Extension popup UI (Vue)
 │   └── options/            # Options page (Vue + Router)
 │
@@ -157,6 +161,37 @@ storage.addListener((newState) => {
 ```
 
 **Note**: You should rarely use StorageManager directly. Use PluginManager instead.
+
+### ModalManager
+
+Manages modal windows for plugins that need UI overlays.
+
+```typescript
+import { modalManager } from '@/core/ModalManager';
+
+// Open modal for a plugin
+modalManager.openModal('plugin-id');
+
+// Close current modal
+modalManager.removeModal();
+
+// Check if modal is open
+if (modalManager.isOpen('plugin-id')) {
+  // Modal is open for this plugin
+}
+
+// Check if any modal is open
+if (modalManager.isAnyOpen()) {
+  // Some modal is open
+}
+```
+
+**Modal Architecture:**
+- Modals are Vue apps mounted in the content script context
+- Each modal has its own route via Vue Router
+- Modal component is defined in `entrypoints/content/App.vue`
+- Modal views are defined in plugin-specific routes
+- Modals are draggable and auto-snap to viewport boundaries
 
 ## Plugin Development
 
@@ -304,12 +339,23 @@ export const myPlugin: Plugin = {
 
   // Execute once with shortcut (no persistent state)
   onExecute: {
+    type: 'EXECUTE_PLUGIN', // or 'OPEN_MODAL'
     execute: async (ctx) => {
       // One-time execution logic
       const picker = createColorPicker();
       picker.open();
     },
-    shortcut: ['Cmd', 'Shift', 'C']
+  },
+
+  // Optional: Shortcut to trigger execution
+  shortcuts: {
+    execute: {
+      name: 'Execute Plugin',
+      description: 'Execute this plugin',
+      handler: async (event, ctx) => {
+        // This triggers onExecute
+      }
+    }
   },
 
   // Don't use onActivate for one-shot plugins
@@ -319,6 +365,51 @@ export const myPlugin: Plugin = {
 **Difference:**
 - `onActivate`: Runs when plugin is enabled, maintains persistent state (e.g., grid overlay always visible)
 - `onExecute`: Runs once when triggered via shortcut or popup click, no persistent state (e.g., color picker opens temporarily)
+
+**Execute Types:**
+- `EXECUTE_PLUGIN`: Runs the `execute` function directly
+- `OPEN_MODAL`: Opens a modal window using ModalManager (requires modal route setup)
+
+**Modal-based Plugin Example:**
+```typescript
+import type { Plugin } from '@/types';
+
+export const colorPicker: Plugin = {
+  id: 'color-picker',
+  name: 'Color Picker',
+  description: 'Pick colors from page',
+  category: 'inspector',
+  tier: 'free',
+  version: '1.0.0',
+
+  icon: (container) => {
+    container.style.background = 'var(--plugin-color-picker)';
+    container.innerHTML = '<svg>...</svg>';
+  },
+
+  onExecute: {
+    type: 'OPEN_MODAL', // Opens modal automatically
+    execute: (ctx) => {
+      // Optional: Additional logic when modal opens
+    },
+  },
+
+  shortcuts: {
+    pickColor: {
+      name: 'Pick Color',
+      description: 'Pick color at cursor position',
+      handler: (event, ctx) => {
+        // Open modal and trigger color picking
+        if (!modalManager.isOpen('color-picker')) {
+          modalManager.openModal('color-picker');
+        }
+        // Dispatch custom event for modal to handle
+        window.dispatchEvent(new CustomEvent('colorpicker:start'));
+      }
+    }
+  }
+};
+```
 
 **Triggering from Popup:**
 ```typescript
@@ -421,6 +512,34 @@ async function togglePlugin(pluginId: string) {
 </script>
 ```
 
+### Modal Views (Content Script)
+
+For plugins with `onExecute.type: 'OPEN_MODAL'`, create a route in `entrypoints/content/router/index.ts`:
+
+```typescript
+import { createRouter, createMemoryHistory } from 'vue-router';
+import ColorPickerView from '@/plugins/implementations/color-picker/ColorPickerView.vue';
+
+const routes = [
+  {
+    path: '/color-picker',
+    name: 'color-picker',
+    component: ColorPickerView,
+  },
+  // Add more modal routes...
+];
+
+export default createRouter({
+  history: createMemoryHistory(),
+  routes,
+});
+```
+
+Modal view components receive the plugin context and can communicate via:
+- Custom events: `window.dispatchEvent(new CustomEvent('event-name', { detail }))`
+- ModalManager: Access via `modalManager.isOpen()`, `modalManager.removeModal()`
+- Plugin state: Access via `PluginManager.getInstance().getSettings()`
+
 ### Reusable Vue Components
 
 The project includes reusable UI components in `/components/`:
@@ -485,6 +604,7 @@ await browser.tabs.sendMessage(tabs[0].id, {
 browser.runtime.onMessage.addListener((message) => {
   if (message.type === 'EXECUTE_PLUGIN') {
     manager.executePlugin(message.pluginId, ctx);
+    // If onExecute.type === 'OPEN_MODAL', ModalManager opens the modal
   }
 });
 ```
@@ -517,6 +637,12 @@ interface Plugin {
   onActivate?: (ctx: ContentScriptContext) => void | Promise<void>;
   onCleanup?: () => void | Promise<void>;
 
+  // One-shot execution (for popup clicks or shortcuts)
+  onExecute?: {
+    type: 'EXECUTE_PLUGIN' | 'OPEN_MODAL';
+    execute: (ctx: ContentScriptContext) => void | Promise<void>;
+  };
+
   settings?: Record<string, PluginSetting>;
   shortcuts?: Record<string, PluginShortcut>;
 }
@@ -526,6 +652,11 @@ interface PluginState {
   enabled: boolean;
   settings: Record<string, any>;
   shortcuts: Record<string, ShortcutState>;
+}
+
+// Shortcut state (stored per shortcut)
+interface ShortcutState {
+  keys?: ShortcutKey[]; // User-customized shortcut keys
 }
 
 // App state (stored in browser.storage.local)
@@ -612,19 +743,23 @@ Plugins are marked with `tier: 'free' | 'pro'`.
 
 ### DO:
 - ✅ Use `PluginManager` for all plugin operations
+- ✅ Use `ModalManager` for modal-based plugins
 - ✅ Use singleton pattern (`getInstance()`)
 - ✅ Follow the example plugin structure
-- ✅ Provide cleanup logic in plugins
+- ✅ Provide cleanup logic in plugins (for `onActivate` plugins)
 - ✅ Use TypeScript types from `@/types`
 - ✅ Test on both Mac and Windows
+- ✅ Use Vue Router for modal views in content scripts
+- ✅ Import Vue composition API functions (`ref`, `onMounted`, etc.) in Vue components
 
 ### DON'T:
 - ❌ Access `StorageManager` directly (use `PluginManager` instead)
 - ❌ Create new data structures without good reason
 - ❌ Modify core modules (`core/`) unless refactoring
-- ❌ Forget cleanup logic (causes memory leaks)
+- ❌ Forget cleanup logic in `onActivate` plugins (causes memory leaks)
 - ❌ Use emojis unless explicitly requested
 - ❌ Hardcode platform-specific shortcuts (use abstracted format)
+- ❌ Mix `onActivate` and `onExecute` in the same plugin (choose one pattern)
 
 ## Common Tasks
 
@@ -632,6 +767,20 @@ Plugins are marked with `tier: 'free' | 'pro'`.
 1. Create `plugins/implementations/my-plugin/index.ts`
 2. Define plugin following the `Plugin` interface
 3. Import and register in `plugins/index.ts`
+4. If using modals: Create modal view component and add route in `entrypoints/content/router/index.ts`
+
+### Adding a modal-based plugin:
+1. Create plugin with `onExecute.type: 'OPEN_MODAL'`
+2. Create Vue component for modal view (e.g., `ColorPickerView.vue`)
+3. Register route in `entrypoints/content/router/index.ts`:
+   ```typescript
+   {
+     path: '/my-plugin',
+     name: 'my-plugin',
+     component: MyPluginView,
+   }
+   ```
+4. Modal will auto-mount when plugin is executed
 
 ### Modifying plugin behavior:
 1. Update plugin definition in `plugins/implementations/*/index.ts`

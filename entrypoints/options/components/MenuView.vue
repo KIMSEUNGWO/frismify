@@ -1,3 +1,9 @@
+<script setup lang="ts">
+import {useRoute} from "vue-router";
+
+const route = useRoute();
+
+</script>
 
 <template>
   <aside data-is-fold="false">
@@ -10,7 +16,7 @@
       <img src="/logo.svg" width="36px" height="36px" alt="logo"/>
     </div>
     <div class="menu-container">
-      <div class="group-menu">
+      <div class="group-menu main">
         <h3>main</h3>
         <div class="menu-list">
           <RouterLink to="/" class="menu" :class="{ 'active': route.path === '/' }">
@@ -56,12 +62,6 @@
   </aside>
 </template>
 
-<script setup lang="ts">
-import {useRoute} from "vue-router";
-
-const route = useRoute();
-</script>
-
 <style scoped>
 aside {
   width: 260px;
@@ -81,7 +81,6 @@ aside {
   gap: 10px;
   border-bottom: 1px solid var(--border-color);
 }
-
 
 .fold-btn {
   width: 38px;
@@ -118,9 +117,13 @@ aside {
   border-radius: 8px;
   padding: 11px 8px;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: start;
   gap: 8px;
+}
+.menu svg {
+  width: 24px;
+  height: 24px;
 }
 .menu-name {
   font-size: 14px;
@@ -128,10 +131,6 @@ aside {
   font-weight: 400;
 }
 
-.menu svg {
-  width: 24px;
-  height: 24px;
-}
 .menu:hover {
   background-color: var(--card-bg-hover);
 }

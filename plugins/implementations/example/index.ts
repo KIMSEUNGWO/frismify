@@ -105,6 +105,7 @@ export const examplePlugin: Plugin = {
   onExecute: {
     type: 'OPEN_MODAL',
     execute: async (ctx) => {
-    }
+
+    },
   }
 };

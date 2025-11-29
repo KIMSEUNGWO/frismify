@@ -17,6 +17,7 @@ import '@/assets/fonts/fonts.css'
 import '@/plugins';
 import App from "./App.vue";
 import router from './router'
+import {modalManager} from "@/core/ModalManager";
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -38,7 +39,7 @@ export default defineContentScript({
       const isEnabled = await manager.isEnabled(plugin.id);
       if (isEnabled && plugin.onActivate) {
         try {
-          await manager.activate(plugin.id, ctx);
+          await manager.activate(plugin, ctx);
           console.log(`✅ Plugin activated: ${plugin.name}`);
         } catch (error) {
           console.error(`❌ Failed to activate plugin ${plugin.id}:`, error);
@@ -73,7 +74,7 @@ export default defineContentScript({
           if (!shortcutState.keys || shortcutState.keys.length === 0) continue;
 
           // Chrome storage에서 배열이 객체로 변환될 수 있으므로 배열로 변환
-          const keys = Array.isArray(shortcutState.keys)
+          const keys : string[] = Array.isArray(shortcutState.keys)
             ? shortcutState.keys
             : Object.values(shortcutState.keys);
 
@@ -130,18 +131,6 @@ export default defineContentScript({
 
 
 function openModal(pluginId: string) {
-  console.log('모달 오픈 직전');
-  const container = document.createElement("div");
-  container.id = "modal-container";
-  document.body.appendChild(container);
-
-// Vue mount
-  console.log("🔧 Mounting modal...");
-  createApp(App)
-      .provide('pluginId', pluginId)
-      .use(router)
-      .mount(container);
+  modalManager.openModal(pluginId);
   console.log("🔧 Mount finished");
-
-
 }

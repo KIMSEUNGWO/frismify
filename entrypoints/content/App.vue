@@ -1,8 +1,12 @@
 
 <template>
-  <div ref="modal" id="frismify-container" @mousedown="onMouseDown">
-    <header id="frismify-header" @mousedown="onMouseDown">
-      <button type="button" class="close-btn">
+  <div ref="modal" class="frismify-container">
+    <header class="frismify-header" @mousedown="onMouseDown">
+      <div class="plugin-info">
+        <div ref="iconContainer" class="plugin-icon-small"></div>
+        <h3>{{ title }}</h3>
+      </div>
+      <button type="button" class="close-btn" @click="modalClose">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path d="M55.1 73.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L147.2 256 9.9 393.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192.5 301.3 329.9 438.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.8 256 375.1 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192.5 210.7 55.1 73.4z"/></svg>
       </button>
     </header>
@@ -13,13 +17,25 @@
 <script setup lang="ts">
 
 import {useRouter} from "vue-router";
+import {modalManager} from "@/core/ModalManager";
+import {PluginManager} from "@/core";
+import {ref} from "vue";
 
-const pluginId = inject('pluginId');
+const pluginId: string = String(inject('pluginId'));
+
+const manager = PluginManager.getInstance();
+
 const router = useRouter();
+const iconContainer = ref<HTMLDivElement>();
+const title = ref('');
 
 onMounted(() => {
   router.replace(`/${pluginId}`);
-
+  const plugin = manager.get(pluginId);
+  title.value = plugin?.name ?? '';
+  if (iconContainer.value) {
+    plugin?.icon(iconContainer.value);
+  }
   window.addEventListener('resize', snapBackIntoView);
 })
 onUnmounted(() => {
@@ -27,6 +43,7 @@ onUnmounted(() => {
 })
 
 
+const modalClose = () => modalManager.removeModal();
 
 // --------------
 // 드래그 모달 로직
@@ -118,27 +135,37 @@ const snapBackIntoView = () => {
 
 <style scoped>
 
-#frismify-container {
+.frismify-container {
   position: fixed;
   top: 20px;
   right: 20px;
   background: var(--bg-dark);
   z-index: 999;
   padding: 20px;
-  /* TODO 나중에 height 없애야함 */
-  height: 100%;
   color: var(--font-color-1);
   border-radius: 21px;
   max-height: calc(100vh - 40px);
 
 }
 
-#frismify-header {
+.frismify-header {
   display: flex;
   align-items: center;
-  justify-content: end;
+  justify-content: space-between;
   margin-bottom: 10px;
   cursor: grabbing;
+}
+.plugin-info {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+}
+.plugin-info h3 {
+  font-size: 14px;
+  color: var(--font-color-1);
+  font-weight: 500;
+
 }
 .close-btn {
   width: 24px;
@@ -155,5 +182,11 @@ const snapBackIntoView = () => {
 }
 .close-btn:hover {
   background: var(--card-bg-hover);
+}
+
+.plugin-icon-small {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
 }
 </style>
