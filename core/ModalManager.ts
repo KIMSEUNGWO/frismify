@@ -54,6 +54,13 @@ export class ModalManager {
         container.id = "modal-container";
         document.body.appendChild(container);
 
+        // // Shadow DOM 생성 (closed mode로 외부 접근 차단)
+        // const shadowRoot = container.attachShadow({ mode: 'open' });
+        //
+        // // Shadow DOM 내부에 마운트용 div 생성
+        // const mountPoint = document.createElement("div");
+        // shadowRoot.appendChild(mountPoint);
+
         console.log("🔧 Mounting modal...");
         this.app = createApp(App)
             .provide('pluginId', pluginId)

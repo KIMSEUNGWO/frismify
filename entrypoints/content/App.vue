@@ -1,16 +1,23 @@
 
 <template>
-  <div ref="modal" class="frismify-container">
+  <div ref="modal" class="frismify-container" :data-is-fold="modalMin">
     <header class="frismify-header" @mousedown="onMouseDown">
       <div class="plugin-info">
         <div ref="iconContainer" class="plugin-icon-small"></div>
         <h3>{{ title }}</h3>
       </div>
-      <button type="button" class="close-btn" @click="modalClose">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path d="M55.1 73.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L147.2 256 9.9 393.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192.5 301.3 329.9 438.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.8 256 375.1 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192.5 210.7 55.1 73.4z"/></svg>
-      </button>
+      <div class="btn-list">
+        <button type="button" class="min-btn" @click="modalMinToggle">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="black" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18 12.998H6C5.73478 12.998 5.48043 12.8926 5.29289 12.7051C5.10536 12.5176 5 12.2632 5 11.998C5 11.7328 5.10536 11.4784 5.29289 11.2909C5.48043 11.1034 5.73478 10.998 6 10.998H18C18.2652 10.998 18.5196 11.1034 18.7071 11.2909C18.8946 11.4784 19 11.7328 19 11.998C19 12.2632 18.8946 12.5176 18.7071 12.7051C18.5196 12.8926 18.2652 12.998 18 12.998Z"/>
+          </svg>
+        </button>
+        <button type="button" class="close-btn" @click="modalClose">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path d="M55.1 73.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L147.2 256 9.9 393.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192.5 301.3 329.9 438.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.8 256 375.1 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192.5 210.7 55.1 73.4z"/></svg>
+        </button>
+      </div>
     </header>
-    <RouterView/>
+    <RouterView id="modal-content" :isFold="modalMin" @disabledFold="disabledFold"/>
   </div>
 </template>
 
@@ -28,6 +35,7 @@ const manager = PluginManager.getInstance();
 const router = useRouter();
 const iconContainer = ref<HTMLDivElement>();
 const title = ref('');
+const modalMin = ref<boolean>(false);
 
 onMounted(() => {
   router.replace(`/${pluginId}`);
@@ -44,6 +52,11 @@ onUnmounted(() => {
 
 
 const modalClose = () => modalManager.removeModal();
+
+const modalMinToggle = () => {
+  modalMin.value = !modalMin.value;
+}
+const disabledFold = () => modalMin.value = false;
 
 // --------------
 // 드래그 모달 로직
@@ -145,13 +158,14 @@ const snapBackIntoView = () => {
   color: var(--font-color-1);
   border-radius: 21px;
   max-height: calc(100vh - 40px);
-
+  overflow-y: hidden;
 }
 
 .frismify-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   margin-bottom: 10px;
   cursor: grabbing;
 }
@@ -165,9 +179,16 @@ const snapBackIntoView = () => {
   font-size: 14px;
   color: var(--font-color-1);
   font-weight: 500;
-
+  white-space: nowrap;
 }
-.close-btn {
+
+.btn-list {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: right;
+}
+.btn-list button {
   width: 24px;
   height: 24px;
   border-radius: 12px;
@@ -175,12 +196,13 @@ const snapBackIntoView = () => {
   align-items: center;
   justify-content: center;
 }
-.close-btn svg {
+
+.btn-list button svg {
   width: 60%;
   height: 60%;
   fill: var(--font-color-2);
 }
-.close-btn:hover {
+.btn-list button:hover {
   background: var(--card-bg-hover);
 }
 
@@ -188,5 +210,14 @@ const snapBackIntoView = () => {
   width: 26px;
   height: 26px;
   border-radius: 6px;
+}
+
+.frismify-container[data-is-fold="true"] {
+  .frismify-header {
+    margin: 0;
+  }
+  #modal-content {
+    display: none;
+  }
 }
 </style>

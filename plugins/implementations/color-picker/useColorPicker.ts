@@ -42,22 +42,30 @@ export function useColorPicker() {
     }
   };
 
-  const start = async () => {
+  const start = async (): Promise<boolean> => {
     isActive.value = true;
 
     // 연속 picking (ESC 누를 때까지)
-    while (isActive.value) {
-      const color = await pickColor();
+    const color = await pickColor();
 
-      if (color) {
-        history.value.unshift(color);
-      } else {
-        // ESC로 취소됨 → 종료
-        break;
+    if (color) {
+      // 이미 같은 색이 존재하는지 확인
+      const existingIndex = history.value.findIndex(c => c.hex === color.hex);
+
+      if (existingIndex !== -1) {
+        // 존재하면 해당 색상을 제거하고 맨 위로 올림
+        history.value.splice(existingIndex, 1);
       }
+
+      // 맨 위에 추가 (timestamp 업데이트)
+      history.value.unshift({
+        ...color,
+        timestamp: Date.now(),
+      });
     }
 
     isActive.value = false;
+    return !!color;
   };
 
   const stop = () => {
