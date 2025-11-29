@@ -1,19 +1,45 @@
 <script setup lang="ts">
-import {useRoute} from "vue-router";
+import { ref, watch, onMounted } from 'vue';
+import { useRoute } from "vue-router";
 
 const route = useRoute();
+const isFold = ref(false);
+
+// Fold 토글
+const toggleFold = () => {
+  isFold.value = !isFold.value;
+};
+
+// Fold 상태 변경 시 body에 클래스 추가/제거
+watch(isFold, (newValue) => {
+  if (newValue) {
+    document.body.classList.add('sidebar-folded');
+  } else {
+    document.body.classList.remove('sidebar-folded');
+  }
+}, { immediate: true });
+
+// 화면 크기에 따라 자동 fold (1024px 이하)
+const handleResize = () => {
+  isFold.value = window.innerWidth <= 1024;
+};
+
+onMounted(() => {
+  handleResize();
+  window.addEventListener('resize', handleResize);
+});
 
 </script>
 
 <template>
-  <aside data-is-fold="false">
+  <aside :data-is-fold="isFold">
     <div class="aside-top">
-<!--      <button class="fold-btn">-->
-<!--        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">-->
-<!--          <path d="M20.5 18V6C20.5 5.72386 20.2761 5.5 20 5.5H8.75V18.5H20V20H4V18.5H7.25V5.5H4C3.72386 5.5 3.5 5.72386 3.5 6V18C3.5 18.2761 3.72386 18.5 4 18.5V20L3.7959 19.9893C2.78722 19.887 2 19.0357 2 18V6C2 4.89543 2.89543 4 4 4H20C21.1046 4 22 4.89543 22 6V18C22 19.1046 21.1046 20 20 20V18.5C20.2761 18.5 20.5 18.2761 20.5 18Z" fill="#94A3B8"/>-->
-<!--        </svg>-->
-<!--      </button>-->
-      <img src="/logo.svg" width="36px" height="36px" alt="logo"/>
+      <button class="fold-btn" @click="toggleFold">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20.5 18V6C20.5 5.72386 20.2761 5.5 20 5.5H8.75V18.5H20V20H4V18.5H7.25V5.5H4C3.72386 5.5 3.5 5.72386 3.5 6V18C3.5 18.2761 3.72386 18.5 4 18.5V20L3.7959 19.9893C2.78722 19.887 2 19.0357 2 18V6C2 4.89543 2.89543 4 4 4H20C21.1046 4 22 4.89543 22 6V18C22 19.1046 21.1046 20 20 20V18.5C20.2761 18.5 20.5 18.2761 20.5 18Z" fill="#94A3B8"/>
+        </svg>
+      </button>
+      <img src="/logo.svg" width="36px" height="36px" alt="logo" class="logo"/>
     </div>
     <div class="menu-container">
       <div class="group-menu main">
@@ -72,7 +98,25 @@ aside {
   top: 0;
   display: flex;
   flex-direction: column;
+  transition: width 0.3s ease-in-out;
+  overflow: hidden;
 }
+
+/* Fold 상태 */
+aside[data-is-fold="true"] {
+  width: 70px;
+}
+aside[data-is-fold="true"] {
+  .logo, .menu-name, .group-menu h3, .profile-box { display: none; }
+  .menu {
+    padding: 8px;
+    justify-content: center;
+  }
+  .aside-top {
+    padding: 21px 16px !important;
+  }
+}
+
 .aside-top {
   display: flex;
   align-items: center;
@@ -86,7 +130,21 @@ aside {
   width: 38px;
   height: 38px;
   border-radius: 8px;
+  transition: all 0.2s;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
+
+.fold-btn svg {
+  transition: transform 0.3s ease-in-out;
+}
+
+/* Fold 상태일 때 아이콘 회전 */
+aside[data-is-fold="true"] .fold-btn svg {
+  transform: rotate(180deg);
+}
+
 .fold-btn:hover {
   background: var(--card-bg-hover);
 }
@@ -122,13 +180,15 @@ aside {
   gap: 8px;
 }
 .menu svg {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
 }
 .menu-name {
   font-size: 14px;
   color: var(--font-color-2);
   font-weight: 400;
+  overflow: hidden;
 }
 
 .menu:hover {
@@ -192,4 +252,6 @@ aside {
 .profile-more-btn:hover {
   background: var(--card-bg-hover);
 }
+
+/* 반응형은 JS로 자동 처리 */
 </style>
