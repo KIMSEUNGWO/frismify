@@ -11,12 +11,9 @@
 import { PluginManager, ShortcutManager } from '@/core';
 import { registerPlugins } from '@/plugins';
 
-import { createApp } from "vue";
 import '@/assets/styles/main.css';
 import '@/assets/fonts/fonts.css'
 import '@/plugins';
-import App from "./App.vue";
-import router from './router'
 import {modalManager} from "@/core/ModalManager";
 
 export default defineContentScript({
@@ -36,14 +33,14 @@ export default defineContentScript({
 
     // 활성화된 플러그인 activate
     for (const plugin of plugins) {
-      const isEnabled = await manager.isEnabled(plugin.id);
-      if (isEnabled && plugin.onActivate) {
-        try {
-          await manager.activate(plugin, ctx);
-          console.log(`✅ Plugin activated: ${plugin.name}`);
-        } catch (error) {
-          console.error(`❌ Failed to activate plugin ${plugin.id}:`, error);
-        }
+      // disabled 이거나 onActicate 가 정의되어있지 않으면 무시
+      if (!await manager.isEnabled(plugin.id) || !plugin.onActivate) continue;
+
+      try {
+        await manager.activate(plugin, ctx);
+        console.log(`✅ Plugin activated: ${plugin.name}`);
+      } catch (error) {
+        console.error(`❌ Failed to activate plugin ${plugin.id}:`, error);
       }
     }
 
