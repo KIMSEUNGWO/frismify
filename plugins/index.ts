@@ -12,6 +12,7 @@ import { PluginManager } from '@/core';
 import { examplePlugin } from '@/plugins/implementations/example';
 import { copyProtectionBreakerPlugin } from '@/plugins/implementations/copy-breaker';
 import { colorPicker } from "@/plugins/implementations/color-picker";
+import {colorPickerCopy} from "@/plugins/implementations/color-picker-copy";
 
 /**
  * 모든 플러그인 등록
@@ -24,6 +25,7 @@ export async function registerPlugins(): Promise<void> {
   await manager.register(examplePlugin);
   await manager.register(copyProtectionBreakerPlugin);
   await manager.register(colorPicker);
+  await manager.register(colorPickerCopy)
 
   console.log(`[Plugins] ${manager.getPluginCount()} plugins registered`);
 }

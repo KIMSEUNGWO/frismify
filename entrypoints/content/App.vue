@@ -1,12 +1,17 @@
 
 <template>
-  <div ref="modal" class="frismify-container" :data-is-fold="modalMin">
+  <div ref="modal" class="frismify-container" :data-is-fold="modalMin" :style="modalStyle" @mousedown="bringToFront">
     <header class="frismify-header" @mousedown="onMouseDown">
       <div class="plugin-info">
         <div ref="iconContainer" class="plugin-icon-small"></div>
         <h3>{{ title }}</h3>
       </div>
       <div class="btn-list">
+        <button type="button" class="arrange-btn" @click="arrangeModals" title="Arrange modals">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 8h4V4H3v4zm6 12h4v-4H9v4zm-6 0h4v-4H3v4zm0-6h4v-4H3v4zm6 0h4v-4H9v4zm6-10v4h4V4h-4zm-6 4h4V4H9v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z" fill="currentColor"/>
+          </svg>
+        </button>
         <button type="button" class="min-btn" @click="modalMinToggle">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="black" xmlns="http://www.w3.org/2000/svg">
             <path d="M18 12.998H6C5.73478 12.998 5.48043 12.8926 5.29289 12.7051C5.10536 12.5176 5 12.2632 5 11.998C5 11.7328 5.10536 11.4784 5.29289 11.2909C5.48043 11.1034 5.73478 10.998 6 10.998H18C18.2652 10.998 18.5196 11.1034 18.7071 11.2909C18.8946 11.4784 19 11.7328 19 11.998C19 12.2632 18.8946 12.5176 18.7071 12.7051C18.5196 12.8926 18.2652 12.998 18 12.998Z"/>
@@ -26,7 +31,7 @@
 import {useRouter} from "vue-router";
 import {modalManager} from "@/core/ModalManager";
 import {PluginManager} from "@/core";
-import {ref} from "vue";
+import {ref, computed, onMounted, onUnmounted, inject} from "vue";
 
 const pluginId: string = String(inject('pluginId'));
 
@@ -36,6 +41,22 @@ const router = useRouter();
 const iconContainer = ref<HTMLDivElement>();
 const title = ref('');
 const modalMin = ref<boolean>(false);
+const modalIndex = ref<number>(0);
+
+const modalStyle = computed(() => {
+  const baseZIndex = 999;
+  return {
+    zIndex: baseZIndex + modalIndex.value
+  };
+});
+
+const updateModalIndex = () => {
+  modalIndex.value = modalManager.getModalIndex(pluginId);
+};
+
+const onStackChange = () => {
+  updateModalIndex();
+};
 
 onMounted(() => {
   router.replace(`/${pluginId}`);
@@ -44,19 +65,80 @@ onMounted(() => {
   if (iconContainer.value) {
     plugin?.icon(iconContainer.value);
   }
+  updateModalIndex();
   window.addEventListener('resize', snapBackIntoView);
+  window.addEventListener('modal-stack-change', onStackChange);
 })
 onUnmounted(() => {
   window.removeEventListener('resize', snapBackIntoView);
+  window.removeEventListener('modal-stack-change', onStackChange);
 })
 
+const bringToFront = () => {
+  modalManager.bringToFront(pluginId);
+};
 
-const modalClose = () => modalManager.removeModal();
+const modalClose = () => modalManager.removeModal(pluginId);
 
 const modalMinToggle = () => {
   modalMin.value = !modalMin.value;
 }
 const disabledFold = () => modalMin.value = false;
+
+// --------------
+// 정렬 로직
+// --------------
+
+const arrangeModals = (e: MouseEvent) => {
+  e.stopPropagation(); // Prevent bringToFront from triggering
+
+  const allModals = document.querySelectorAll('.frismify-container');
+  if (allModals.length <= 1) return;
+
+  // Collect all modal elements with their current positions
+  const modals = Array.from(allModals).map((el) => ({
+    element: el as HTMLElement,
+    rect: el.getBoundingClientRect()
+  }));
+
+  // Sort by current position (left to right, then top to bottom)
+  modals.sort((a, b) => {
+    const leftDiff = a.rect.left - b.rect.left;
+    if (Math.abs(leftDiff) > 5) return leftDiff; // Different columns
+    return a.rect.top - b.rect.top; // Same column, sort by top
+  });
+
+  // Arrange modals in a vertical column pattern from top-right, expanding left
+  let currentRight = PADDING;
+  let currentY = PADDING;
+  let columnWidth = 0;
+  const maxHeight = window.innerHeight - PADDING;
+
+  modals.forEach((modal, index) => {
+    const rect = modal.rect;
+
+    // Check if we need to move to next column (left)
+    if (currentY + rect.height > maxHeight && index > 0) {
+      currentRight += columnWidth + MODAL_GAP;
+      currentY = PADDING;
+      columnWidth = 0;
+    }
+
+    // Apply position with transition
+    modal.element.style.transition = "all 0.3s ease";
+    modal.element.style.right = `${currentRight}px`;
+    modal.element.style.top = `${currentY}px`;
+
+    // Update tracking variables
+    currentY += rect.height + MODAL_GAP;
+    columnWidth = Math.max(columnWidth, rect.width);
+
+    // Remove transition after animation
+    setTimeout(() => {
+      modal.element.style.transition = "";
+    }, 300);
+  });
+};
 
 // --------------
 // 드래그 모달 로직
@@ -70,6 +152,7 @@ let startRight = 0;
 let startTop = 0;
 
 const PADDING = 20; // 화면 패딩
+const MODAL_GAP = 10; // 모달 간 간격
 
 const onMouseDown = (e: MouseEvent) => {
   if (!modal.value) return;
@@ -153,7 +236,7 @@ const snapBackIntoView = () => {
   top: 20px;
   right: 20px;
   background: var(--bg-dark);
-  z-index: 999;
+  z-index: 10000;
   padding: 20px;
   color: var(--font-color-1);
   border-radius: 21px;

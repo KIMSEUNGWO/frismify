@@ -15,6 +15,10 @@ const router = createRouter({
             path: '/color-picker',
             component: () => import('@/plugins/implementations/color-picker/ColorPickerModalView.vue'),
         },
+        {
+            path: '/color-picker-copy',
+            component: () => import('@/plugins/implementations/color-picker-copy/ColorPickerModalView.vue'),
+        },
     ],
 })
 
