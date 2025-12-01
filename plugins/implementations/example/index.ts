@@ -30,7 +30,7 @@ export const examplePlugin: Plugin = {
   },
 
   // ===== 실행 설정 =====
-  matches: ['<all_urls>'],
+  matches: ['*.tistory.com'],
   runAt: 'document_idle',
 
   // ===== 설정 스키마 =====

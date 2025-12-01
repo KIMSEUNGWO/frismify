@@ -15,7 +15,7 @@
  * - 싱글톤: 모든 컨텍스트에서 동일 인스턴스
  */
 
-import type { Plugin, PluginState, AppState } from '../types';
+import type { Plugin, PluginState, AppState } from '@/types';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { StorageManager } from './StorageManager';
 import { ShortcutManager } from './ShortcutManager';
@@ -573,5 +573,7 @@ export class PluginManager {
   get(pluginId: string) : Plugin | undefined {
     return this.plugins.get(pluginId);
   }
+
+
 }
 

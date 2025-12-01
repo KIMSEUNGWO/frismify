@@ -2,14 +2,17 @@
  * Content Script
  *
  * 역할:
- * - 플러그인 등록
- * - 활성화된 플러그인 activate
+ * - Background로부터 상태를 구독하여 플러그인 실행 (공유)
+ * - Modal 제어 (비공유 - 각 탭 독립)
  * - 단축키 핸들링
  * - Context 무효화 시 cleanup
+ *
+ * 중요: 플러그인 등록은 Background에서만! (Single Source of Truth)
  */
 
-import { PluginManager, ShortcutManager } from '@/core';
-import { registerPlugins } from '@/plugins';
+import { ShortcutManager } from '@/core';
+import { allPlugins } from '@/plugins';
+import { pluginManagerProxy } from '@/core/proxy/PluginManagerProxy';
 
 import '@/assets/styles/main.css';
 import '@/assets/fonts/fonts.css'
@@ -22,25 +25,24 @@ export default defineContentScript({
   async main(ctx) {
     console.log('🎯 Content script loaded');
 
-    const manager = PluginManager.getInstance();
     const shortcut = ShortcutManager.getInstance();
+    const activatedPlugins = new Map<string, any>(); // 활성화된 플러그인 추적 (이 탭 전용)
 
-    // 플러그인 등록
+    console.log(`📦 Found ${allPlugins.length} plugins`);
 
+    // Background로부터 상태를 가져와서 플러그인 activate
+    for (const plugin of allPlugins) {
+      const state = await pluginManagerProxy.getPluginState(plugin.id);
 
-    const plugins = manager.getPlugins();
-    console.log(`📦 Found ${plugins.length} plugins`);
-
-    // 활성화된 플러그인 activate
-    for (const plugin of plugins) {
-      // disabled 이거나 onActicate 가 정의되어있지 않으면 무시
-      if (!await manager.isEnabled(plugin.id) || !plugin.onActivate) continue;
-
-      try {
-        await manager.activate(plugin, ctx);
-        console.log(`✅ Plugin activated: ${plugin.name}`);
-      } catch (error) {
-        console.error(`❌ Failed to activate plugin ${plugin.id}:`, error);
+      // enabled이고 onActivate가 정의되어 있으면 activate
+      if (state?.enabled && plugin.onActivate) {
+        try {
+          await plugin.onActivate(ctx);
+          activatedPlugins.set(plugin.id, plugin);
+          console.log(`✅ Plugin activated: ${plugin.name}`);
+        } catch (error) {
+          console.error(`❌ Failed to activate plugin ${plugin.id}:`, error);
+        }
       }
     }
 
@@ -49,7 +51,11 @@ export default defineContentScript({
       if (message.type === 'EXECUTE_PLUGIN') {
         const { pluginId } = message;
         console.log(`🚀 Executing plugin: ${pluginId}`);
-        manager.executePlugin(pluginId, ctx);
+
+        const plugin = allPlugins.find(p => p.id === pluginId);
+        if (plugin?.onExecute) {
+          plugin.onExecute.execute(ctx);
+        }
         return;
       }
 
@@ -61,8 +67,8 @@ export default defineContentScript({
 
     // 전역 단축키 핸들러
     const handleShortcut = async (event: KeyboardEvent) => {
-      for (const plugin of plugins) {
-        const state = await manager.getPluginState(plugin.id);
+      for (const plugin of allPlugins) {
+        const state = await pluginManagerProxy.getPluginState(plugin.id);
         if (!state?.shortcuts) continue;
 
         // 1. 등록된 단축키 확인 (onExecute의 'execute' 포함)
@@ -85,13 +91,12 @@ export default defineContentScript({
             // execute shortcut 처리
             if (shortcutId === 'execute' && plugin.onExecute) {
               console.log(`⌨️ Execute shortcut triggered: ${plugin.name}`);
-              await manager.executePlugin(plugin.id, ctx);
+              await plugin.onExecute.execute(ctx);
               return;
             }
 
             // 일반 shortcut 처리 (enabled 상태 확인)
-            const isEnabled = await manager.isEnabled(plugin.id);
-            if (!isEnabled) {
+            if (!state.enabled) {
               console.log(`[Content] Plugin ${plugin.id} is disabled, skipping`);
               continue;
             }
@@ -115,13 +120,22 @@ export default defineContentScript({
     // 전역 keydown 이벤트 리스너 등록
     document.addEventListener('keydown', handleShortcut, true);
 
-    // Context 무효화 시 정리
+    // Context 무효화 시 정리 (비공유 - 이 탭에서 activate된 것만 cleanup)
     ctx.onInvalidated(async () => {
       console.log('🧹 Context invalidated, cleaning up');
       document.removeEventListener('keydown', handleShortcut, true);
 
-      // 모든 플러그인 cleanup 호출
-      await manager.cleanupAll();
+      // 이 탭에서 activate된 플러그인들만 cleanup
+      for (const plugin of activatedPlugins.values()) {
+        if (plugin.onCleanup) {
+          try {
+            await plugin.onCleanup();
+            console.log(`🧹 Plugin cleaned up: ${plugin.name}`);
+          } catch (error) {
+            console.error(`❌ Failed to cleanup plugin ${plugin.id}:`, error);
+          }
+        }
+      }
     });
   },
 });

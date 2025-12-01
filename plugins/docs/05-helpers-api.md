@@ -1,263 +1,414 @@
-# Helpers API
+# State 및 Settings 접근
 
-플러그인 실행 시 제공되는 `helpers` 객체의 API 문서입니다.
+플러그인에서 상태와 설정에 접근하는 방법입니다.
 
 ## 개요
 
-`helpers` 객체는 `createPluginExecutor`의 콜백 함수에서 사용할 수 있습니다.
+Prismify는 **Background가 Single Source of Truth**인 아키텍처를 사용합니다. Content Script에서는 `pluginManagerProxy`를 통해 Background의 상태를 조회하고 변경사항을 구독합니다.
 
 ```typescript
-execute: createPluginExecutor('my-plugin', {
-  onActivate: (helpers) => {
-    // helpers 사용
-  },
-  onSettingsChange: (helpers) => {
-    // helpers 사용
-  },
-  shortcuts: {
-    'toggle': (event, helpers) => {
-      // helpers 사용
+import { pluginManagerProxy } from '@/core/proxy/PluginManagerProxy';
+
+// 플러그인 상태 조회
+const state = await pluginManagerProxy.getPluginState('my-plugin');
+
+// 설정 변경 감지
+pluginManagerProxy.addListener((newState) => {
+  console.log('State changed:', newState);
+});
+```
+
+## 플러그인 상태 조회
+
+### getPluginState()
+
+특정 플러그인의 전체 상태를 가져옵니다.
+
+```typescript
+const state = await pluginManagerProxy.getPluginState(pluginId);
+// {
+//   enabled: true,
+//   settings: { color: '#FF0000', size: 8 },
+//   shortcuts: { toggle: { keys: ['Cmd', 'Shift', 'P'] } }
+// }
+```
+
+### 반환 타입
+
+```typescript
+interface PluginState {
+  enabled: boolean;
+  settings: Record<string, any>;
+  shortcuts: Record<string, ShortcutState>;
+}
+
+interface ShortcutState {
+  keys?: ShortcutKey[];
+}
+```
+
+## 설정값 사용
+
+### onActivate에서 설정 읽기
+
+```typescript
+import { pluginManagerProxy } from '@/core/proxy/PluginManagerProxy';
+
+export const myPlugin: Plugin = {
+  id: 'my-plugin',
+  // ... 메타데이터
+
+  settings: {
+    color: {
+      type: 'string',
+      label: '색상',
+      defaultValue: '#FF0000',
+    },
+    gridSize: {
+      type: 'number',
+      label: '그리드 크기',
+      defaultValue: 8,
     },
   },
-})
-```
 
-## 속성
+  onActivate: async (ctx) => {
+    // 설정값 가져오기
+    const state = await pluginManagerProxy.getPluginState('my-plugin');
 
-### settings
+    // 기본값과 함께 사용 (권장)
+    const color = state?.settings?.color ?? '#FF0000';
+    const gridSize = state?.settings?.gridSize ?? 8;
 
-현재 플러그인의 모든 설정값을 포함하는 **읽기 전용** 객체입니다.
-
-```typescript
-type: DeepReadonly<PluginSettings>
-
-const allSettings = helpers.settings;
-// { enabled: true, theme: 'dark', maxItems: 50 }
-
-// ❌ 직접 수정 불가능 (TypeScript 에러)
-helpers.settings.theme = 'light';  // Error!
-
-// ✅ settingsManager를 통해 변경
-const { settingsManager } = await import('./settings-manager');
-await settingsManager.updatePluginSettings('my-plugin', 'theme', 'light');
-```
-
-### config
-
-플러그인의 전체 설정 객체입니다. **읽기 전용**입니다.
-
-```typescript
-type: DeepReadonly<PluginConfig>
-
-const config = helpers.config;
-// { enabled: true, settings: {...}, shortcuts: {...} }
-
-// ❌ 직접 수정 불가능
-helpers.config.enabled = false;  // Error!
-```
-
-### pluginId
-
-플러그인 ID입니다.
-
-```typescript
-type: string
-
-const id = helpers.pluginId;
-// 'my-plugin'
-```
-
-### ctx
-
-WXT Content Script Context 객체입니다.
-
-```typescript
-type: ContentScriptContext
-
-const context = helpers.ctx;
-// WXT에서 제공하는 content script context
-```
-
-## 메서드
-
-### getSetting()
-
-특정 설정값을 가져옵니다.
-
-#### 기본값과 함께
-
-```typescript
-getSetting<T>(key: string, defaultValue: T): T
-
-const theme = helpers.getSetting('theme', 'dark');
-// theme: 'dark' | 'light' | 'auto'
-```
-
-#### 기본값 없이
-
-```typescript
-getSetting<T>(key: string): T | undefined
-
-const apiKey = helpers.getSetting<string>('apiKey');
-// apiKey: string | undefined
-
-if (!apiKey) {
-  console.warn('API 키가 설정되지 않았습니다');
-}
-```
-
-### isShortcutEnabled()
-
-단축키의 활성화 여부를 확인합니다.
-
-```typescript
-isShortcutEnabled(shortcutId: string): boolean
-
-const enabled = helpers.isShortcutEnabled('toggle');
-if (!enabled) {
-  console.log('단축키가 비활성화되어 있습니다');
-  return;
-}
-```
-
-### getShortcutKey()
-
-단축키의 현재 키 조합을 가져옵니다.
-
-```typescript
-getShortcutKey(shortcutId: string): { windows: string; mac: string } | null
-
-const key = helpers.getShortcutKey('toggle');
-// { windows: 'Ctrl+Shift+P', mac: '⌘⇧P' }
-
-if (key) {
-  console.log('Windows:', key.windows);
-  console.log('Mac:', key.mac);
-}
-```
-
-## 사용 예제
-
-### 설정 기반 초기화
-
-```typescript
-execute: createPluginExecutor('my-plugin', {
-  onActivate: (helpers) => {
-    // 설정값 읽기
-    const enabled = helpers.getSetting('enabled', true);
-    const theme = helpers.getSetting('theme', 'dark');
-    const maxItems = helpers.getSetting('maxItems', 50);
-
-    if (!enabled) {
-      console.log('플러그인이 비활성화되어 있습니다');
-      return;
-    }
-
-    // 초기화 로직
-    initializePlugin({ theme, maxItems });
+    // 설정값 사용
+    const overlay = document.createElement('div');
+    overlay.style.backgroundColor = color;
+    overlay.style.width = `${gridSize}px`;
+    document.body.appendChild(overlay);
   },
-})
+};
 ```
 
-### 설정 변경 처리
+### 단축키 핸들러에서 설정 읽기
 
 ```typescript
-execute: createPluginExecutor('my-plugin', {
-  onActivate: (helpers) => {
-    const instance = createInstance(helpers.settings);
-  },
+shortcuts: {
+  toggle: {
+    name: '토글',
+    description: '기능을 켜고 끕니다',
+    keys: ['Cmd', 'Shift', 'P'],
+    handler: async (event, ctx) => {
+      // 설정값 조회
+      const state = await pluginManagerProxy.getPluginState('my-plugin');
+      const enabled = state?.settings?.enabled ?? true;
 
-  onSettingsChange: (helpers) => {
-    // 변경된 설정 확인
-    console.log('플러그인 ID:', helpers.pluginId);
-    console.log('새 설정:', helpers.settings);
-
-    // 설정 적용
-    const theme = helpers.getSetting('theme', 'dark');
-    instance.updateTheme(theme);
-  },
-})
-```
-
-### 단축키 핸들러
-
-```typescript
-execute: createPluginExecutor('my-plugin', {
-  shortcuts: {
-    'toggle': (event, helpers) => {
-      // 단축키 활성화 확인
-      if (!helpers.isShortcutEnabled('toggle')) {
+      if (!enabled) {
+        console.log('기능이 비활성화되어 있습니다');
         return;
       }
 
-      // 현재 단축키 정보
-      const key = helpers.getShortcutKey('toggle');
-      console.log('단축키:', key);
-
-      // 설정값 사용
-      const enabled = helpers.getSetting('enabled', true);
-      if (!enabled) return;
-
-      // 토글 로직
       toggleFeature();
     },
   },
-})
+},
 ```
 
-### Context 활용
+## 설정 변경 감지
+
+### addListener()
+
+Background의 상태 변경을 감지합니다.
 
 ```typescript
-execute: createPluginExecutor('my-plugin', {
-  onActivate: (helpers) => {
-    // WXT context 사용
-    const ctx = helpers.ctx;
+onActivate: async (ctx) => {
+  let overlayElement: HTMLElement;
 
-    // Content script의 고유 ID
-    console.log('Context ID:', ctx.id);
+  // 초기 설정 적용
+  const state = await pluginManagerProxy.getPluginState('my-plugin');
+  const color = state?.settings?.color ?? '#FF0000';
 
-    // cleanup 등록
+  overlayElement = document.createElement('div');
+  overlayElement.style.backgroundColor = color;
+  document.body.appendChild(overlayElement);
+
+  // 설정 변경 감지
+  const handleStateChange = (newState: AppState) => {
+    const pluginState = newState.plugins['my-plugin'];
+    if (pluginState?.settings) {
+      const newColor = pluginState.settings.color;
+      if (overlayElement && newColor) {
+        overlayElement.style.backgroundColor = newColor;
+      }
+    }
+  };
+
+  pluginManagerProxy.addListener(handleStateChange);
+
+  // Cleanup 시 리스너 제거 (필수!)
+  ctx.onInvalidated(() => {
+    pluginManagerProxy.removeListener(handleStateChange);
+  });
+},
+```
+
+### removeListener()
+
+더 이상 필요 없는 리스너를 제거합니다.
+
+```typescript
+// 리스너 함수 저장
+const handleChange = (state: AppState) => {
+  console.log('State changed:', state);
+};
+
+// 리스너 등록
+pluginManagerProxy.addListener(handleChange);
+
+// 리스너 제거 (cleanup 시)
+ctx.onInvalidated(() => {
+  pluginManagerProxy.removeListener(handleChange);
+});
+```
+
+## 상태 변경 요청
+
+### enablePlugin()
+
+플러그인을 활성화합니다.
+
+```typescript
+await pluginManagerProxy.enablePlugin('my-plugin');
+```
+
+### disablePlugin()
+
+플러그인을 비활성화합니다.
+
+```typescript
+await pluginManagerProxy.disablePlugin('my-plugin');
+```
+
+### updateSetting()
+
+설정값을 업데이트합니다.
+
+```typescript
+await pluginManagerProxy.updateSetting('my-plugin', 'color', '#00FF00');
+```
+
+**주의**: 일반적으로 플러그인 내부에서 상태를 직접 변경하지 않습니다. 상태 변경은 Options 페이지에서 사용자가 수행합니다.
+
+## ContentScriptContext
+
+WXT에서 제공하는 Content Script 컨텍스트 객체입니다.
+
+```typescript
+interface ContentScriptContext {
+  id: string;                         // Context 고유 ID
+  onInvalidated: (callback) => void;  // 무효화 시 콜백
+}
+```
+
+### 사용 예제
+
+```typescript
+onActivate: async (ctx) => {
+  console.log('Context ID:', ctx.id);
+
+  // DOM 요소 생성
+  const element = document.createElement('div');
+  document.body.appendChild(element);
+
+  // Content script 무효화 시 정리
+  ctx.onInvalidated(() => {
+    console.log('Content script invalidated');
+    element.remove();
+  });
+},
+```
+
+## 완전한 예제
+
+### Grid Overlay 플러그인
+
+```typescript
+import type { Plugin } from '@/types';
+import { pluginManagerProxy } from '@/core/proxy/PluginManagerProxy';
+import type { AppState } from '@/types';
+
+export const gridOverlay: Plugin = {
+  id: 'grid-overlay',
+  name: 'Grid Overlay',
+  description: '그리드 오버레이를 표시합니다',
+  category: 'design',
+  version: '1.0.0',
+  tier: 'free',
+
+  icon: (container) => {
+    container.style.background = '#10B981';
+  },
+
+  settings: {
+    gridSize: {
+      type: 'number',
+      label: '그리드 크기',
+      description: '그리드 셀 크기 (px)',
+      defaultValue: 8,
+    },
+    gridColor: {
+      type: 'string',
+      label: '그리드 색상',
+      description: '그리드 선 색상',
+      defaultValue: '#FF0000',
+    },
+    opacity: {
+      type: 'number',
+      label: '투명도',
+      description: '오버레이 투명도 (0-1)',
+      defaultValue: 0.3,
+    },
+  },
+
+  onActivate: async (ctx) => {
+    // 초기 설정 가져오기
+    const state = await pluginManagerProxy.getPluginState('grid-overlay');
+
+    const gridSize = state?.settings?.gridSize ?? 8;
+    const gridColor = state?.settings?.gridColor ?? '#FF0000';
+    const opacity = state?.settings?.opacity ?? 0.3;
+
+    // 그리드 오버레이 생성
+    const overlay = document.createElement('div');
+    overlay.id = 'grid-overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 999999;
+      background-image:
+        repeating-linear-gradient(
+          0deg,
+          ${gridColor} 0px,
+          ${gridColor} 1px,
+          transparent 1px,
+          transparent ${gridSize}px
+        ),
+        repeating-linear-gradient(
+          90deg,
+          ${gridColor} 0px,
+          ${gridColor} 1px,
+          transparent 1px,
+          transparent ${gridSize}px
+        );
+      opacity: ${opacity};
+    `;
+    document.body.appendChild(overlay);
+
+    // 설정 변경 감지
+    const handleStateChange = (newState: AppState) => {
+      const pluginState = newState.plugins['grid-overlay'];
+      if (!pluginState?.settings) return;
+
+      const newGridSize = pluginState.settings.gridSize ?? 8;
+      const newGridColor = pluginState.settings.gridColor ?? '#FF0000';
+      const newOpacity = pluginState.settings.opacity ?? 0.3;
+
+      // 오버레이 업데이트
+      if (overlay) {
+        overlay.style.backgroundImage = `
+          repeating-linear-gradient(0deg, ${newGridColor} 0px, ${newGridColor} 1px, transparent 1px, transparent ${newGridSize}px),
+          repeating-linear-gradient(90deg, ${newGridColor} 0px, ${newGridColor} 1px, transparent 1px, transparent ${newGridSize}px)
+        `;
+        overlay.style.opacity = String(newOpacity);
+      }
+    };
+
+    pluginManagerProxy.addListener(handleStateChange);
+
+    // Cleanup 시 리스너 제거
     ctx.onInvalidated(() => {
-      console.log('Content script가 무효화되었습니다');
+      pluginManagerProxy.removeListener(handleStateChange);
     });
   },
-})
+
+  onCleanup: () => {
+    document.getElementById('grid-overlay')?.remove();
+  },
+};
 ```
 
 ## 타입 정의
 
 ```typescript
-interface PluginHelpers {
-  /** 현재 설정값 (읽기 전용) */
-  readonly settings: DeepReadonly<PluginSettings>;
+// PluginManagerProxy의 주요 메서드
+interface PluginManagerProxy {
+  getPluginState(pluginId: string): Promise<PluginState | null>;
+  enablePlugin(pluginId: string): Promise<void>;
+  disablePlugin(pluginId: string): Promise<void>;
+  updateSetting(pluginId: string, settingId: string, value: any): Promise<void>;
 
-  /** 전체 설정 객체 (읽기 전용) */
-  readonly config: DeepReadonly<PluginConfig>;
-
-  /** 플러그인 ID */
-  pluginId: string;
-
-  /** Content Script Context */
-  ctx: ContentScriptContext;
-
-  /** 특정 설정값 가져오기 (defaultValue 있을 때) */
-  getSetting<T>(key: string, defaultValue: T): T;
-
-  /** 특정 설정값 가져오기 (defaultValue 없을 때) */
-  getSetting<T>(key: string): T | undefined;
-
-  /** 단축키 활성화 여부 확인 */
-  isShortcutEnabled(shortcutId: string): boolean;
-
-  /** 커스텀 단축키 가져오기 (없으면 기본값) */
-  getShortcutKey(shortcutId: string): { windows: string; mac: string } | null;
+  addListener(callback: (state: AppState) => void): void;
+  removeListener(callback: (state: AppState) => void): void;
 }
 
-/**
- * 깊은 읽기 전용 타입
- * 중첩된 객체도 모두 readonly로 만듭니다
- */
-type DeepReadonly<T> = {
-  readonly [P in keyof T]: T[P] extends object ? DeepReadonly<T[P]> : T[P];
-};
+// 플러그인 상태
+interface PluginState {
+  enabled: boolean;
+  settings: Record<string, any>;
+  shortcuts: Record<string, ShortcutState>;
+}
+
+// 전체 앱 상태
+interface AppState {
+  plugins: Record<string, PluginState>;
+}
+```
+
+## 주의사항
+
+### 1. 항상 기본값 사용
+
+```typescript
+// ✅ 좋음
+const color = state?.settings?.color ?? '#FF0000';
+
+// ❌ 나쁨 (undefined일 수 있음)
+const color = state?.settings?.color;
+```
+
+### 2. 리스너 정리 필수
+
+```typescript
+// ✅ 좋음
+onActivate: async (ctx) => {
+  const handleChange = (state) => { /* ... */ };
+  pluginManagerProxy.addListener(handleChange);
+
+  ctx.onInvalidated(() => {
+    pluginManagerProxy.removeListener(handleChange);
+  });
+}
+
+// ❌ 나쁨 (메모리 누수)
+onActivate: async (ctx) => {
+  pluginManagerProxy.addListener((state) => { /* ... */ });
+  // 리스너 제거 안 함!
+}
+```
+
+### 3. Background에서 설정 읽지 말 것
+
+Content Script에서만 `pluginManagerProxy`를 사용하세요. Background에서는 `PluginManager.getInstance()`를 직접 사용합니다.
+
+```typescript
+// Content Script ✅
+import { pluginManagerProxy } from '@/core/proxy/PluginManagerProxy';
+const state = await pluginManagerProxy.getPluginState('my-plugin');
+
+// Background ✅
+import { PluginManager } from '@/core';
+const manager = PluginManager.getInstance();
+const state = await manager.getPluginState('my-plugin');
 ```

@@ -21,11 +21,10 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import type { Plugin, PluginState } from '@/types';
-import { PluginManager } from '@/core';
+import { pluginManagerProxy } from '@/core/proxy/PluginManagerProxy';
 import TierTag from '@/components/TierTag.vue';
 import ShortcutBadge from '@/components/ShortcutBadge.vue';
 
-const manager = PluginManager.getInstance();
 const iconContainer = ref<HTMLDivElement>();
 const pluginState = ref<PluginState | undefined>(undefined);
 
@@ -56,7 +55,7 @@ onMounted(async () => {
   }
 
   // 플러그인 상태 로드
-  pluginState.value = await manager.getPluginState(props.plugin.id);
+  pluginState.value = await pluginManagerProxy.getPluginState(props.plugin.id);
 })
 
 </script>

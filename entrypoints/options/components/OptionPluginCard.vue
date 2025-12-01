@@ -71,7 +71,7 @@ import type {Plugin, PluginState} from "@/types";
 import {onMounted, ref} from "vue";
 import TierTag from "@/components/TierTag.vue";
 import ToggleSwitch from "@/components/ToggleSwitch.vue";
-import {PluginManager} from "@/core";
+import { pluginManagerProxy } from '@/core/proxy/PluginManagerProxy';
 
 const iconContainer = ref<HTMLDivElement>();
 const props = defineProps<{
@@ -79,20 +79,18 @@ const props = defineProps<{
   config: PluginState;
 }>();
 
-const manager = PluginManager.getInstance();
-
 // 플러그인 활성화/비활성화
 const togglePlugin = async (pluginId: string, enabled: boolean) => {
   if (enabled) {
-    await manager.enablePlugin(pluginId);
+    await pluginManagerProxy.enablePlugin(pluginId);
   } else {
-    await manager.disablePlugin(pluginId);
+    await pluginManagerProxy.disablePlugin(pluginId);
   }
 };
 
 // 설정값 업데이트
 const updateSetting = async (pluginId: string, settingId: string, value: any) => {
-  await manager.updateSetting(pluginId, settingId, value);
+  await pluginManagerProxy.updateSetting(pluginId, settingId, value);
 };
 
 

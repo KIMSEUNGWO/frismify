@@ -4,243 +4,362 @@
 
 ## 기본 사용법
 
-메타데이터에 `shortcuts` 배열을 추가합니다.
+플러그인 정의에 `shortcuts` 객체를 추가합니다.
 
 ```typescript
-const meta: PluginMetaData = {
-  // ... 기본 필드
-  shortcuts: [
-    {
-      id: 'toggle',
+import type { Plugin } from '@/types';
+
+export const myPlugin: Plugin = {
+  id: 'my-plugin',
+  name: 'My Plugin',
+  // ... 메타데이터
+
+  shortcuts: {
+    toggle: {
       name: '토글',
       description: '플러그인을 활성화/비활성화합니다',
-      defaultKey: {
-        windows: 'Ctrl+Shift+P',
-        mac: '⌘⇧P',
+      keys: ['Cmd', 'Shift', 'P'],
+      handler: async (event, ctx) => {
+        console.log('단축키 실행!');
+        // 로직 구현
       },
-      enabled: true,
     },
-  ],
+  },
 };
 ```
 
 ## 단축키 정의
 
-### 필수 필드
+### 기본 구조
 
 ```typescript
-{
-  id: 'unique-shortcut-id',      // 고유 ID
-  name: '단축키 이름',             // 표시 이름
-  description: '단축키 설명',      // 설명
-  defaultKey: {                  // 기본 키 조합
-    windows: 'Ctrl+Shift+K',
-    mac: '⌘⇧K',
-  },
+shortcuts: {
+  [shortcutId: string]: {
+    name: string;           // 표시 이름
+    description: string;    // 설명
+    keys?: ShortcutKey[];  // 기본 키 조합 (선택)
+    handler: (event: KeyboardEvent, ctx: ContentScriptContext) => void | Promise<void>;
+  }
 }
 ```
 
-### 선택적 필드
+### 키 조합 형식
+
+**추상화된 키 형식** (플랫폼 자동 변환):
 
 ```typescript
-{
-  enabled: true,  // 기본 활성화 여부 (기본값: true)
-}
+// 수식키
+type ModifierKey = 'Cmd' | 'Shift' | 'Alt' | 'Ctrl';
+
+// 일반 키
+type RegularKey = 'A'-'Z' | '0'-'9' | 'F1'-'F12' | 'ArrowUp' | 'ArrowDown' | ...;
+
+// 조합
+keys: ['Cmd', 'Shift', 'P']      // Mac: ⌘⇧P, Windows: Ctrl+Shift+P
+keys: ['Alt', 'K']                // Mac: ⌥K, Windows: Alt+K
+keys: ['Cmd', 'B']                // Mac: ⌘B, Windows: Ctrl+B
 ```
 
-## 키 조합 형식
-
-### Windows/Linux
-
-```typescript
-'Ctrl+Shift+K'    // Ctrl + Shift + K
-'Ctrl+Alt+D'      // Ctrl + Alt + D
-'Shift+F'         // Shift + F
-'Ctrl+/'          // Ctrl + /
-```
-
-### Mac
-
-```typescript
-'⌘⇧K'      // Command + Shift + K
-'⌘⌥D'      // Command + Option + D
-'⇧F'       // Shift + F
-'⌘/'       // Command + /
-```
-
-#### Mac 수식키
-- `⌘` - Command (Cmd)
-- `⌃` - Control
-- `⌥` - Option (Alt)
-- `⇧` - Shift
+**자동 플랫폼 변환:**
+- Mac: `Cmd` → `Command (⌘)`, `Alt` → `Option (⌥)`
+- Windows/Linux: `Cmd` → `Ctrl`
 
 ## 단축키 핸들러
 
-`shortcuts` 객체에 핸들러 함수를 정의합니다.
+### 기본 핸들러
 
 ```typescript
-execute: createPluginExecutor('my-plugin', {
-  onActivate: (helpers) => {
-    console.log('플러그인 활성화');
-  },
+shortcuts: {
+  copy: {
+    name: '복사',
+    description: '현재 내용을 복사합니다',
+    keys: ['Cmd', 'Shift', 'C'],
+    handler: async (event, ctx) => {
+      event.preventDefault(); // 기본 동작 방지 (자동으로 처리됨)
 
-  shortcuts: {
-    'toggle': (event, helpers) => {
-      // 토글 로직
-      console.log('토글 단축키 눌림');
-    },
-
-    'copy': (event, helpers) => {
-      // 복사 로직
-      navigator.clipboard.writeText('내용');
+      const content = getCurrentContent();
+      await navigator.clipboard.writeText(content);
+      console.log('복사 완료');
     },
   },
-})
+}
 ```
 
-## 단축키 상태 확인
-
-### 활성화 여부 확인
+### 상태 기반 핸들러
 
 ```typescript
-execute: createPluginExecutor('my-plugin', {
-  shortcuts: {
-    'toggle': (event, helpers) => {
-      const isEnabled = helpers.isShortcutEnabled('toggle');
-      if (!isEnabled) return;
-
-      // 핸들러 로직
+shortcuts: {
+  toggle: {
+    name: '검사 모드 토글',
+    description: 'CSS 검사 모드를 켜고 끕니다',
+    keys: ['Cmd', 'Shift', 'F'],
+    handler: async (event, ctx) => {
+      // 상태 토글
+      const isActive = getInspectorState();
+      if (isActive) {
+        deactivateInspector();
+      } else {
+        activateInspector();
+      }
     },
   },
-})
+}
 ```
 
-### 커스텀 키 가져오기
+## 단축키 ID
+
+### `execute` (예약 ID)
+
+`execute`는 `onExecute` 타입 플러그인을 위한 **예약된 단축키 ID**입니다.
 
 ```typescript
-execute: createPluginExecutor('my-plugin', {
-  shortcuts: {
-    'toggle': (event, helpers) => {
-      const customKey = helpers.getShortcutKey('toggle');
-      console.log('현재 단축키:', customKey);
-      // { windows: 'Ctrl+Shift+P', mac: '⌘⇧P' }
+export const colorPicker: Plugin = {
+  id: 'color-picker',
+  // ... 메타데이터
+
+  onExecute: {
+    type: 'EXECUTE_PLUGIN',
+    execute: async (ctx) => {
+      // Color Picker 실행
+      const color = await pickColor();
+      navigator.clipboard.writeText(color);
     },
   },
-})
+
+  // 단축키로 onExecute 실행
+  shortcuts: {
+    execute: {
+      name: 'Color Picker 실행',
+      description: '색상 선택 도구를 실행합니다',
+      keys: ['Cmd', 'Shift', 'C'],
+      handler: async (event, ctx) => {
+        // onExecute.execute가 자동으로 호출됨
+      },
+    },
+  },
+};
+```
+
+**execute의 특별한 점:**
+- enabled 상태 확인 **안 함**
+- onExecute.execute() 호출
+
+### 일반 단축키 (enabled 확인)
+
+`execute` 외의 단축키는 플러그인이 enabled 상태일 때만 동작합니다.
+
+```typescript
+shortcuts: {
+  navigateUp: {
+    name: '상위 요소로 이동',
+    description: '부모 요소를 선택합니다',
+    keys: ['ArrowUp'],
+    handler: async (event, ctx) => {
+      // ✅ 플러그인이 enabled 상태일 때만 실행됨
+      navigateToParent();
+    },
+  },
+}
+```
+
+## 커스텀 키 조합
+
+사용자는 Options 페이지 > Shortcuts 메뉴에서 단축키를 변경할 수 있습니다.
+
+### 초기 키 없이 정의
+
+```typescript
+shortcuts: {
+  custom: {
+    name: '커스텀 동작',
+    description: '사용자 지정 동작',
+    // keys 없음 - 사용자가 Options에서 설정
+    handler: async (event, ctx) => {
+      doCustomAction();
+    },
+  },
+}
 ```
 
 ## 실전 예제
 
+### CSS Inspector 플러그인
+
 ```typescript
-const meta: PluginMetaData = {
+import type { Plugin } from '@/types';
+
+let selectedElement: HTMLElement | null = null;
+let isInspecting = false;
+
+export const cssInspector: Plugin = {
   id: 'css-inspector',
   name: 'CSS Inspector',
-  shortcuts: [
-    {
-      id: 'toggle-inspector',
+  description: '요소를 클릭하여 CSS를 검사합니다',
+  category: 'inspector',
+  version: '1.0.0',
+  tier: 'free',
+
+  icon: (container) => {
+    container.style.background = '#3B82F6';
+  },
+
+  shortcuts: {
+    toggle: {
       name: '검사 모드 토글',
       description: 'CSS 검사 모드를 켜고 끕니다',
-      defaultKey: {
-        windows: 'Ctrl+Shift+F',
-        mac: '⌘⇧F',
-      },
-      enabled: true,
-    },
-    {
-      id: 'copy-styles',
-      name: '스타일 복사',
-      description: '선택한 요소의 스타일을 복사합니다',
-      defaultKey: {
-        windows: 'Ctrl+Shift+C',
-        mac: '⌘⇧C',
-      },
-      enabled: true,
-    },
-    {
-      id: 'navigate-up',
-      name: '상위 요소로 이동',
-      description: '부모 요소를 선택합니다',
-      defaultKey: {
-        windows: 'ArrowUp',
-        mac: '↑',
-      },
-      enabled: true,
-    },
-  ],
-};
+      keys: ['Cmd', 'Shift', 'F'],
+      handler: async (event, ctx) => {
+        isInspecting = !isInspecting;
+        console.log(`검사 모드: ${isInspecting ? 'ON' : 'OFF'}`);
 
-const cssInspectorPlugin: Plugin = {
-  meta,
-  matches: ['<all_urls>'],
-  runAt: 'document_idle',
-
-  execute: createPluginExecutor('css-inspector', {
-    onActivate: (helpers) => {
-      let isInspecting = false;
-      let selectedElement: HTMLElement | null = null;
-
-      // 상태를 외부에서 접근 가능하도록 저장
-      (window as any).__inspectorState = {
-        get isInspecting() { return isInspecting; },
-        set isInspecting(value) { isInspecting = value; },
-        get selectedElement() { return selectedElement; },
-        set selectedElement(value) { selectedElement = value; },
-      };
-    },
-
-    shortcuts: {
-      'toggle-inspector': (event, helpers) => {
-        const state = (window as any).__inspectorState;
-        state.isInspecting = !state.isInspecting;
-
-        if (state.isInspecting) {
-          console.log('검사 모드 활성화');
+        if (isInspecting) {
+          document.body.style.cursor = 'crosshair';
         } else {
-          console.log('검사 모드 비활성화');
+          document.body.style.cursor = '';
+          selectedElement = null;
         }
       },
+    },
 
-      'copy-styles': (event, helpers) => {
-        const state = (window as any).__inspectorState;
-        if (!state.selectedElement) {
+    copyStyles: {
+      name: '스타일 복사',
+      description: '선택한 요소의 스타일을 복사합니다',
+      keys: ['Cmd', 'Shift', 'C'],
+      handler: async (event, ctx) => {
+        if (!selectedElement) {
           console.warn('선택된 요소가 없습니다');
           return;
         }
 
-        const styles = window.getComputedStyle(state.selectedElement);
+        const styles = window.getComputedStyle(selectedElement);
         const cssText = styles.cssText;
-        navigator.clipboard.writeText(cssText);
+        await navigator.clipboard.writeText(cssText);
         console.log('스타일 복사 완료');
       },
+    },
 
-      'navigate-up': (event, helpers) => {
-        const state = (window as any).__inspectorState;
-        if (!state.selectedElement) return;
+    navigateUp: {
+      name: '상위 요소로 이동',
+      description: '부모 요소를 선택합니다',
+      keys: ['ArrowUp'],
+      handler: async (event, ctx) => {
+        if (!selectedElement) return;
 
-        const parent = state.selectedElement.parentElement;
-        if (parent) {
-          state.selectedElement = parent;
-          console.log('상위 요소로 이동:', parent.tagName);
+        const parent = selectedElement.parentElement;
+        if (parent && parent !== document.body) {
+          selectedElement = parent;
+          highlightElement(selectedElement);
+          console.log('상위 요소:', selectedElement.tagName);
         }
       },
     },
-  }),
+
+    navigateDown: {
+      name: '하위 요소로 이동',
+      description: '첫 번째 자식 요소를 선택합니다',
+      keys: ['ArrowDown'],
+      handler: async (event, ctx) => {
+        if (!selectedElement) return;
+
+        const firstChild = selectedElement.firstElementChild as HTMLElement;
+        if (firstChild) {
+          selectedElement = firstChild;
+          highlightElement(selectedElement);
+          console.log('하위 요소:', selectedElement.tagName);
+        }
+      },
+    },
+  },
+
+  onActivate: async (ctx) => {
+    // 클릭 핸들러
+    const handleClick = (e: MouseEvent) => {
+      if (isInspecting) {
+        e.preventDefault();
+        e.stopPropagation();
+        selectedElement = e.target as HTMLElement;
+        highlightElement(selectedElement);
+      }
+    };
+
+    document.addEventListener('click', handleClick, true);
+
+    ctx.onInvalidated(() => {
+      document.removeEventListener('click', handleClick, true);
+    });
+  },
+
+  onCleanup: () => {
+    isInspecting = false;
+    selectedElement = null;
+    document.body.style.cursor = '';
+  },
 };
+
+function highlightElement(element: HTMLElement) {
+  // 하이라이트 구현...
+}
+```
+
+## 단축키 충돌 방지
+
+### 브라우저 기본 단축키 피하기
+
+다음 단축키는 피하세요:
+- `Ctrl+T` (새 탭)
+- `Ctrl+W` (탭 닫기)
+- `Ctrl+N` (새 창)
+- `Ctrl+R` (새로고침)
+- `F5` (새로고침)
+- `F12` (DevTools)
+
+### 권장 단축키 패턴
+
+```typescript
+// ✅ 좋은 예 (Cmd+Shift+문자)
+keys: ['Cmd', 'Shift', 'P']
+keys: ['Cmd', 'Shift', 'F']
+keys: ['Cmd', 'Alt', 'C']
+
+// ⚠️  주의 (브라우저 기본 단축키)
+keys: ['Cmd', 'T']  // 새 탭
+keys: ['Cmd', 'W']  // 탭 닫기
+```
+
+## 타입 정의
+
+```typescript
+// types.ts
+export type ShortcutKey = string; // 'Cmd', 'Shift', 'Alt', 'Ctrl', 'A', 'ArrowUp', etc.
+
+export interface PluginShortcut {
+  name: string;
+  description: string;
+  keys?: ShortcutKey[];
+  handler: (event: KeyboardEvent, ctx: ContentScriptContext) => void | Promise<void>;
+}
+
+export interface ShortcutState {
+  keys?: ShortcutKey[]; // 사용자 커스텀 키
+}
 ```
 
 ## 주의사항
 
-### 단축키 충돌
+### 1. 자동 preventDefault
 
-- 브라우저 기본 단축키와 충돌하지 않도록 주의하세요
-- 다른 플러그인과 충돌하지 않도록 고유한 키 조합을 사용하세요
+단축키 핸들러가 호출되면 자동으로 `event.preventDefault()`와 `event.stopPropagation()`이 호출됩니다.
 
-### 자동 등록
+### 2. enabled 상태 확인
 
-- `createPluginExecutor`가 단축키 핸들러를 자동으로 등록합니다
-- cleanup 시 자동으로 해제됩니다
+`execute` 외의 단축키는 플러그인이 enabled 상태일 때만 동작합니다.
 
-### 비활성화된 단축키
+### 3. 플랫폼 자동 변환
 
-- 사용자가 Options 페이지에서 단축키를 비활성화할 수 있습니다
-- `helpers.isShortcutEnabled()`로 확인할 수 있습니다
+`Cmd` 키는 자동으로 플랫폼에 맞게 변환됩니다:
+- Mac: Command (⌘)
+- Windows/Linux: Ctrl
+
+### 4. 커스텀 단축키 우선
+
+사용자가 Options에서 설정한 단축키가 플러그인 정의의 `keys`보다 우선합니다.

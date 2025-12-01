@@ -1,6 +1,6 @@
 import {createApp} from "vue";
 import App from "@/entrypoints/content/App.vue";
-import router from "@/entrypoints/content/router";
+import { createModalRouter } from "@/entrypoints/content/router";
 
 
 export class ModalManager {
@@ -77,7 +77,7 @@ export class ModalManager {
     }
 
     public arrangeModals() {
-        if (this.modalStack.length <= 1) return;
+        if (this.modalStack.length === 0) return;
 
         // Arrange modals in a vertical column pattern from top-right, expanding left
         let currentRight = this.PADDING;
@@ -137,9 +137,13 @@ export class ModalManager {
         modalContainer.appendChild(container);
 
         console.log(`🔧 Mounting modal for ${pluginId}...`);
+
+        // 각 모달마다 독립적인 router 인스턴스 생성
+        const modalRouter = createModalRouter();
+
         const app = createApp(App)
             .provide('pluginId', pluginId)
-            .use(router);
+            .use(modalRouter);
         app.mount(container);
         this.apps.set(pluginId, app);
     }

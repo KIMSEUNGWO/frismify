@@ -19,23 +19,22 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { PluginManager } from '@/core';
-import { registerPlugins } from '@/plugins';
+import { pluginManagerProxy } from '@/core/proxy/PluginManagerProxy';
+import { allPlugins } from '@/plugins';
 import type {AppState, PluginState, Plugin} from '@/types';
 import OptionPluginCard from "@/entrypoints/options/components/OptionPluginCard.vue";
 
-const manager = PluginManager.getInstance();
 const pluginsWithConfig = ref<Array<{ plugin: Plugin; config: PluginState }>>([]);
 
 // 플러그인과 설정 로드
+// 로컬 allPlugins 정의와 Proxy로 가져온 상태를 조합
 const loadPlugins = async () => {
-  const plugins = manager.getPlugins();
   const result = [];
 
-  for (const plugin of plugins) {
-    const config = await manager.getPluginState(plugin.id);
+  for (const plugin of allPlugins) {
+    const config = await pluginManagerProxy.getPluginState(plugin.id);
     if (config) {
-      result.push({ plugin, config });
+      result.push({ plugin, config }); // 로컬 plugin 정의 사용 (icon 함수 포함)
     }
   }
 
@@ -49,14 +48,11 @@ const handleSettingsChange = async (state: AppState) => {
 };
 
 onMounted(async () => {
-  // 플러그인 등록 (Options 컨텍스트에서)
-  await registerPlugins();
-
   // 초기 데이터 로드
   await loadPlugins();
 
   // 설정 변경 리스너 등록
-  manager.addListener(handleSettingsChange);
+  pluginManagerProxy.addListener(handleSettingsChange);
 
   // 아이콘 그리기
   const containers = document.querySelectorAll('.plugin-icon-container');
@@ -69,7 +65,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   // 리스너 제거
-  manager.removeListener(handleSettingsChange);
+  pluginManagerProxy.removeListener(handleSettingsChange);
 });
 </script>
 

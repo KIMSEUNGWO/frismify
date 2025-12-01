@@ -8,3 +8,4 @@
 export { PluginManager } from './PluginManager';
 export { ShortcutManager } from './ShortcutManager';
 export { StorageManager } from './StorageManager';
+export { pluginManagerProxy } from './proxy/PluginManagerProxy';

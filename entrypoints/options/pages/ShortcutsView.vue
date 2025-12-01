@@ -46,25 +46,25 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { PluginManager } from '@/core';
-import { registerPlugins } from '@/plugins';
 import type { AppState, Plugin, PluginState } from '@/types';
 import ShortcutItem from '../components/ShortcutItem.vue';
 import ShortcutEdit from "@/entrypoints/options/components/ShortcutEdit.vue";
+import {pluginManagerProxy} from "@/core/proxy/PluginManagerProxy";
+import {allPlugins} from "@/plugins";
 
-const manager = PluginManager.getInstance();
+const manager = pluginManagerProxy;
 
 const pluginsWithShortcuts = ref<Array<{ plugin: Plugin; config: PluginState }>>([]);
 
 // 플러그인 로드
 const loadPlugins = async () => {
-  const plugins = manager.getPlugins().filter(p => p.shortcuts || p.onExecute);
+  const plugins = allPlugins.filter(p => p.shortcuts || p.onExecute);
   const result = [];
 
   for (const plugin of plugins) {
-    const config = await manager.getPluginState(plugin.id);
+    const config = await pluginManagerProxy.getPluginState(plugin.id);
     if (config) {
-      result.push({ plugin, config });
+      result.push({ plugin, config }); // 로컬 plugin 정의 사용 (icon 함수 포함)
     }
   }
 
@@ -78,9 +78,6 @@ const handleSettingsChange = async (state: AppState) => {
 };
 
 onMounted(async () => {
-  // 플러그인 등록 (Options 컨텍스트에서)
-  await registerPlugins();
-
   await loadPlugins();
   manager.addListener(handleSettingsChange);
 
