@@ -9,10 +9,10 @@
             <h3 class="plugin-name">{{ plugin.name }}</h3>
           </div>
           <p class="plugin-description">{{ plugin.description }}</p>
-          <div v-if="executeShortcutKeys" class="execute-shortcut">
-            <ShortcutBadge :keys="executeShortcutKeys" variant="badge" :font-size="10" />
-          </div>
         </div>
+      </div>
+      <div v-if="executeShortcutKeys" class="execute-shortcut">
+        <ShortcutBadge :keys="executeShortcutKeys" variant="badge" :font-size="10" />
       </div>
     </div>
   </div>
@@ -80,8 +80,8 @@ onMounted(async () => {
 
 .plugin-info {
   display: flex;
-  align-items: start;
-  justify-content: start;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px;
   width: 100%;
 }
@@ -89,8 +89,7 @@ onMounted(async () => {
 .plugin-header {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 4px;
+  gap: 12px;
 }
 
 .plugin-icon {

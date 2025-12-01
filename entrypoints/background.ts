@@ -80,22 +80,4 @@ export default defineBackground(async () => {
   browser.runtime.onMessage.addListener((message, sender) => {
     return handleMessage(message, sender);
   });
-
-  // Chrome Commands (단축키) 처리
-  // browser.commands.onCommand.addListener(async (command) => {
-  //   console.log(`⌨️ Command received in background: ${command}`);
-  //
-  //   const parsed = manager.parseCommand(command);
-  //   if (!parsed) return;
-  //
-  //   // Content script로 메시지 전송
-  //   const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-  //   if (tabs[0]?.id) {
-  //     browser.tabs.sendMessage(tabs[0].id, {
-  //       type: 'EXECUTE_SHORTCUT',
-  //       pluginId: parsed.pluginId,
-  //       shortcutId: parsed.shortcutId,
-  //     });
-  //   }
-  // });
 });

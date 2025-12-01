@@ -26,7 +26,7 @@ export default defineContentScript({
     const shortcut = ShortcutManager.getInstance();
 
     // 플러그인 등록
-    await registerPlugins();
+
 
     const plugins = manager.getPlugins();
     console.log(`📦 Found ${plugins.length} plugins`);
