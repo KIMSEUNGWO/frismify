@@ -1,7 +1,7 @@
 
 <template>
-  <div ref="modal" class="frismify-container" :data-is-fold="modalMin" :style="modalStyle" @mousedown="bringToFront">
-    <header class="frismify-header" @mousedown="onMouseDown">
+  <div ref="modal" class="prismify-container" :data-is-fold="modalMin" @mousedown="bringToFront">
+    <header class="prismify-header" @mousedown="onMouseDown">
       <div class="plugin-info">
         <div ref="iconContainer" class="plugin-icon-small"></div>
         <h3>{{ title }}</h3>
@@ -42,13 +42,6 @@ const iconContainer = ref<HTMLDivElement>();
 const title = ref('');
 const modalMin = ref<boolean>(false);
 const modalIndex = ref<number>(0);
-
-const modalStyle = computed(() => {
-  const baseZIndex = 999;
-  return {
-    zIndex: baseZIndex + modalIndex.value
-  };
-});
 
 const updateModalIndex = () => {
   modalIndex.value = modalManager.getModalIndex(pluginId);
@@ -91,53 +84,7 @@ const disabledFold = () => modalMin.value = false;
 
 const arrangeModals = (e: MouseEvent) => {
   e.stopPropagation(); // Prevent bringToFront from triggering
-
-  const allModals = document.querySelectorAll('.frismify-container');
-  if (allModals.length <= 1) return;
-
-  // Collect all modal elements with their current positions
-  const modals = Array.from(allModals).map((el) => ({
-    element: el as HTMLElement,
-    rect: el.getBoundingClientRect()
-  }));
-
-  // Sort by current position (left to right, then top to bottom)
-  modals.sort((a, b) => {
-    const leftDiff = a.rect.left - b.rect.left;
-    if (Math.abs(leftDiff) > 5) return leftDiff; // Different columns
-    return a.rect.top - b.rect.top; // Same column, sort by top
-  });
-
-  // Arrange modals in a vertical column pattern from top-right, expanding left
-  let currentRight = PADDING;
-  let currentY = PADDING;
-  let columnWidth = 0;
-  const maxHeight = window.innerHeight - PADDING;
-
-  modals.forEach((modal, index) => {
-    const rect = modal.rect;
-
-    // Check if we need to move to next column (left)
-    if (currentY + rect.height > maxHeight && index > 0) {
-      currentRight += columnWidth + MODAL_GAP;
-      currentY = PADDING;
-      columnWidth = 0;
-    }
-
-    // Apply position with transition
-    modal.element.style.transition = "all 0.3s ease";
-    modal.element.style.right = `${currentRight}px`;
-    modal.element.style.top = `${currentY}px`;
-
-    // Update tracking variables
-    currentY += rect.height + MODAL_GAP;
-    columnWidth = Math.max(columnWidth, rect.width);
-
-    // Remove transition after animation
-    setTimeout(() => {
-      modal.element.style.transition = "";
-    }, 300);
-  });
+  modalManager.arrangeModals();
 };
 
 // --------------
@@ -231,7 +178,7 @@ const snapBackIntoView = () => {
 
 <style scoped>
 
-.frismify-container {
+.prismify-container {
   position: fixed;
   top: 20px;
   right: 20px;
@@ -244,7 +191,7 @@ const snapBackIntoView = () => {
   overflow-y: hidden;
 }
 
-.frismify-header {
+.prismify-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -295,8 +242,8 @@ const snapBackIntoView = () => {
   border-radius: 6px;
 }
 
-.frismify-container[data-is-fold="true"] {
-  .frismify-header {
+.prismify-container[data-is-fold="true"] {
+  .prismify-header {
     margin: 0;
   }
   #modal-content {

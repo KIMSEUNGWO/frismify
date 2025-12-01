@@ -38,7 +38,7 @@ The architecture follows these principles:
 ### Project Structure
 
 ```
-frismify/
+prismify/
 ├── core/                    # Core architecture (DO NOT MODIFY unless refactoring)
 │   ├── PluginManager.ts    # Facade for all plugin operations
 │   ├── ModalManager.ts     # Modal window management

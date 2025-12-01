@@ -23,7 +23,7 @@ npm run zip
 ## 📦 프로젝트 구조
 
 ```
-frismify/
+prismify/
 ├── core/                    # 핵심 아키텍처
 │   ├── PluginManager.ts    # 플러그인 통합 관리 (Facade)
 │   ├── ShortcutManager.ts  # 단축키 관리

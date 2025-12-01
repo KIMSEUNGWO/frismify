@@ -7,4 +7,4 @@ import App from './App.vue';
 // 플러그인 로드
 import '@/plugins';
 
-createApp(App).mount('#app');
+createApp(App).mount('#prismify');

@@ -2,8 +2,6 @@ body {
   margin: 0;
 }
 #prismify {
-  width: 400px;
-  padding: 20px;
   background: var(--bg-dark);
   font-family: 'Pretendard', sans-serif;
   -webkit-font-smoothing: antialiased;

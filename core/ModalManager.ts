@@ -9,8 +9,11 @@ export class ModalManager {
     private modalStack: string[] = []; // Stack of plugin IDs
     private apps: Map<string, ReturnType<typeof createApp>> = new Map();
 
-    private constructor() {
-    }
+    private readonly MODAL_CONTAINER = 'modal-container';
+    private readonly PADDING = 20;
+    private readonly MODAL_GAP = 10;
+
+    private constructor() {}
 
     public static getInstance(): ModalManager {
         if (!ModalManager.instance) {
@@ -32,9 +35,10 @@ export class ModalManager {
     }
 
     public openModal(pluginId: string) {
-        // If already open, bring to front
+        // If already open, bring to front and highlight
         if (this.modalStack.includes(pluginId)) {
             this.bringToFront(pluginId);
+            this.highlightModal(pluginId);
             return;
         }
 
@@ -72,12 +76,64 @@ export class ModalManager {
         return this.modalStack.indexOf(pluginId);
     }
 
+    public arrangeModals() {
+        if (this.modalStack.length <= 1) return;
+
+        // Arrange modals in a vertical column pattern from top-right, expanding left
+        let currentRight = this.PADDING;
+        let currentY = this.PADDING;
+        let columnWidth = 0;
+        const maxHeight = window.innerHeight - this.PADDING;
+
+        this.getModalStack()
+            .reverse()
+            .map(pluginId => document.querySelector(`[data-modal-id="${pluginId}"] .prismify-container`) as HTMLElement)
+            .filter(element => element !== null)
+            .forEach((element, index) => {
+                const rect = element.getBoundingClientRect();
+
+                // Check if we need to move to next column (left)
+                if (currentY + rect.height > maxHeight && index > 0) {
+                    currentRight += columnWidth + this.MODAL_GAP;
+                    currentY = this.PADDING;  // Top은 항상 PADDING (화면 가장자리)
+                    columnWidth = 0;
+                }
+
+                // Apply position with transition
+                element.style.transition = "all 0.3s ease";
+                element.style.right = `${currentRight}px`;
+                element.style.top = `${currentY}px`;
+
+                // Update tracking variables
+                currentY += rect.height + this.MODAL_GAP;
+                columnWidth = Math.max(columnWidth, rect.width);
+
+                // Remove transition after animation
+                setTimeout(() => {
+                    element.style.transition = "";
+                }, 300);
+            })
+    }
+
+    private highlightModal(pluginId: string) {
+        const element = document.querySelector(`[data-modal-id="${pluginId}"] .prismify-container`) as HTMLElement;
+        if (!element) return;
+
+        // Add highlight effect
+        element.style.animation = "modal-highlight 0.6s ease";
+
+        // Remove animation after it completes
+        setTimeout(() => {
+            element.style.animation = "";
+        }, 600);
+    }
+
     private createModal(pluginId: string) {
         const container = document.createElement("div");
         container.setAttribute('data-modal-id', pluginId);
-        container.classList.add('frismify-modal-wrapper');
+        container.classList.add('prismify-modal-wrapper');
 
-        const modalContainer = document.getElementById('modal-container') || this.createModalContainer();
+        const modalContainer = document.getElementById(this.MODAL_CONTAINER) || this.createModalContainer();
         modalContainer.appendChild(container);
 
         console.log(`🔧 Mounting modal for ${pluginId}...`);
@@ -90,7 +146,7 @@ export class ModalManager {
 
     private createModalContainer(): HTMLElement {
         const container = document.createElement("div");
-        container.id = "modal-container";
+        container.id = this.MODAL_CONTAINER;
         document.body.appendChild(container);
         return container;
     }
