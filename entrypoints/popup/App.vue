@@ -46,13 +46,12 @@
 <script lang="ts" setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import type { Plugin, AppState } from '@/types';
-import { PluginManager } from '@/core';
-import { registerPlugins } from '@/plugins';
+import { pluginManagerProxy } from '@/core/proxy/PluginManagerProxy';
+import { allPlugins } from '@/plugins';
 import { browser } from 'wxt/browser';
 import PluginCard from "@/entrypoints/popup/components/PluginCard.vue";
 import {openSettings} from "@/core/OptionsUtils";
 
-const manager = PluginManager.getInstance();
 const loading = ref(true);
 const enabledPlugins = ref<Plugin[]>([]);
 
@@ -62,14 +61,14 @@ const filteredPlugins = computed(() => {
 });
 
 // enabled된 플러그인만 로드
+// 로컬 allPlugins 정의와 Proxy로 가져온 상태를 조합
 const loadEnabledPlugins = async () => {
-  const allPlugins = manager.getPlugins();
   const enabled: Plugin[] = [];
 
   for (const plugin of allPlugins) {
-    const isEnabled = await manager.isEnabled(plugin.id);
-    if (isEnabled) {
-      enabled.push(plugin);
+    const state = await pluginManagerProxy.getPluginState(plugin.id);
+    if (state?.enabled) {
+      enabled.push(plugin); // 로컬 plugin 정의 사용 (icon 함수 포함)
     }
   }
 
@@ -94,11 +93,8 @@ const executePlugin = async (plugin: Plugin) => {
 }
 
 onMounted(async () => {
-  // 플러그인 등록 (Popup 컨텍스트에서)
-  await registerPlugins();
-
   // 설정 변경 리스너 등록
-  manager.addListener(handleSettingsChange);
+  pluginManagerProxy.addListener(handleSettingsChange);
 
   // enabled된 플러그인만 로드
   await loadEnabledPlugins();
@@ -106,7 +102,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   // 리스너 제거
-  manager.removeListener(handleSettingsChange);
+  pluginManagerProxy.removeListener(handleSettingsChange);
 });
 
 </script>

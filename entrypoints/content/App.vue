@@ -30,12 +30,11 @@
 
 import {useRouter} from "vue-router";
 import {modalManager} from "@/core/ModalManager";
-import {PluginManager} from "@/core";
+import {PluginManager, pluginManagerProxy} from "@/core";
 import {ref, computed, onMounted, onUnmounted, inject} from "vue";
+import {allPlugins} from "@/plugins";
 
 const pluginId: string = String(inject('pluginId'));
-
-const manager = PluginManager.getInstance();
 
 const router = useRouter();
 const iconContainer = ref<HTMLDivElement>();
@@ -53,7 +52,7 @@ const onStackChange = () => {
 
 onMounted(() => {
   router.replace(`/${pluginId}`);
-  const plugin = manager.get(pluginId);
+  const plugin = allPlugins.find(plugin => plugin.id === pluginId);
   title.value = plugin?.name ?? '';
   if (iconContainer.value) {
     plugin?.icon(iconContainer.value);
