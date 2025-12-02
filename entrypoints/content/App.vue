@@ -187,7 +187,28 @@ const snapBackIntoView = () => {
   color: var(--font-color-1);
   border-radius: 21px;
   max-height: calc(100vh - 40px);
-  overflow-y: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Custom scrollbar for modal */
+.prismify-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.prismify-container::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 10px 0;
+}
+
+.prismify-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.prismify-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .prismify-header {
@@ -239,6 +260,13 @@ const snapBackIntoView = () => {
   width: 26px;
   height: 26px;
   border-radius: 6px;
+}
+
+#modal-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .prismify-container[data-is-fold="true"] {

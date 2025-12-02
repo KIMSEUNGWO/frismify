@@ -9,6 +9,7 @@ export default defineConfig({
       'activeTab',      // 현재 탭 접근
       'scripting',      // 동적 스크립트 주입
       'tabs',
+      'downloads',      // 이미지 다운로드 (CORS 우회)
     ],
     host_permissions: ['<all_urls>'], // 모든 사이트에서 작동
   },

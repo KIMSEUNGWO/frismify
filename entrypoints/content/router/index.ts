@@ -14,6 +14,10 @@ const routes = [
         path: '/color-picker',
         component: () => import('@/plugins/implementations/color-picker/ColorPickerModalView.vue'),
     },
+    {
+        path: '/image-spy',
+        component: () => import('@/plugins/implementations/image-spy/ImageSpyModalView.vue'),
+    },
 ];
 
 // 각 모달마다 새로운 router 인스턴스를 생성하는 factory 함수

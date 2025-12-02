@@ -202,6 +202,32 @@ class PluginManagerProxy {
         }
     }
 
+    /**
+     * 특정 플러그인 가져오기
+     */
+    async getPlugin(pluginId: string): Promise<Plugin | undefined> {
+        if (!this.ensureRuntime()) return undefined;
+
+        const res = await browser.runtime.sendMessage({
+            type: MessageType.GET_PLUGIN,
+            pluginId
+        });
+        return res.plugin as Plugin | undefined;
+    }
+
+    /**
+     * 플러그인 설정값 가져오기
+     */
+    async getPluginSettings(pluginId: string): Promise<Record<string, any>> {
+        if (!this.ensureRuntime()) return {};
+
+        const res = await browser.runtime.sendMessage({
+            type: MessageType.GET_PLUGIN_SETTINGS,
+            pluginId
+        });
+        return res.settings || {};
+    }
+
 }
 
 export const pluginManagerProxy = new PluginManagerProxy();

@@ -93,7 +93,6 @@ const cssSpyPluginExample: Plugin = {
     'toggle-inspector': {
       name: 'Toggle CSS inspection mode',
       description: 'Enable or disable CSS inspection',
-      keys: ['Cmd', 'Shift', 'I'],
       handler: async (event: KeyboardEvent, ctx: ContentScriptContext) => {
         console.log('🔄 Toggle inspector');
         // TODO: Inspector on/off 토글

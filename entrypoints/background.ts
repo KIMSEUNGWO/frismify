@@ -95,11 +95,29 @@ export default defineBackground(async () => {
             break;
           }
 
+          case MessageType.GET_PLUGIN: {
+            const {pluginId} = message;
+            const plugin = pluginManager.get(pluginId);
+            sendResponse({
+              plugin: plugin
+            });
+            break;
+          }
+
           case MessageType.GET_PLUGIN_STATE: {
             const {pluginId} = message;
             const config = await pluginManager.getPluginState(pluginId);
             sendResponse({
               config: config
+            });
+            break;
+          }
+
+          case MessageType.GET_PLUGIN_SETTINGS: {
+            const {pluginId} = message;
+            const settings = await pluginManager.getSettings(pluginId);
+            sendResponse({
+              settings: settings
             });
             break;
           }

@@ -1,16 +1,22 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, inject } from 'vue';
-import { useColorPicker, type PickedColor } from './useColorPicker';
+import { useColorPicker, type PickedColor, type ColorFormat } from './useColorPicker';
 import { usePageColorAnalyzer } from './usePageColorAnalyzer';
+import { checkWCAG, generateShades, generateTints, generateTones } from './colorUtils';
 import {PluginManager} from "@/core";
 import {HTMLButtonElement} from "linkedom";
 
-const { isActive, history, start, clearHistory, copyToClipboard } = useColorPicker();
+const { isActive, history, savedColors, selectedFormat, start, clearHistory, copyToClipboard, getColorString, saveColor, unsaveColor, isColorSaved, clearSavedColors } = useColorPicker();
 const { isAnalyzing, analysis, analyze } = usePageColorAnalyzer();
 
 const copiedIndex = ref<number | null>(null);
-const activeTab = ref<'picker' | 'analysis'>('picker');
+const activeTab = ref<'picker' | 'analysis' | 'tools'>('picker');
 const copiedColor = ref<string | null>(null);
+
+// Tools tab state
+const contrastColor1 = ref('#000000');
+const contrastColor2 = ref('#FFFFFF');
+const selectedColorForVariations = ref<string>('#667eea');
 
 const pluginId = String(inject('pluginId'));
 const manager = PluginManager.getInstance();
@@ -34,7 +40,8 @@ const handleStartPicking = async () => {
 };
 
 const handleCopyColor = async (color: PickedColor, index: number) => {
-  const success = await copyToClipboard(color.hex);
+  const colorString = getColorString(color, selectedFormat.value);
+  const success = await copyToClipboard(colorString);
   if (success) {
     copiedIndex.value = index;
     setTimeout(() => {
@@ -42,6 +49,14 @@ const handleCopyColor = async (color: PickedColor, index: number) => {
     }, 1500);
   }
 };
+
+const formatOptions: { value: ColorFormat; label: string }[] = [
+  { value: 'hex', label: 'HEX' },
+  { value: 'rgb', label: 'RGB' },
+  { value: 'hsl', label: 'HSL' },
+  { value: 'hsv', label: 'HSV' },
+  { value: 'tailwind', label: 'Tailwind' },
+];
 
 const handleClearHistory = () => {
   clearHistory();
@@ -61,9 +76,19 @@ const handleCopyAnalyzedColor = async (hex: string) => {
   }
 };
 
-const switchTab = (tab: 'picker' | 'analysis') => {
+const switchTab = (tab: 'picker' | 'analysis' | 'tools') => {
   activeTab.value = tab;
 };
+
+// Contrast ratio computed
+const contrastResult = computed(() => {
+  return checkWCAG(contrastColor1.value, contrastColor2.value);
+});
+
+// Color variations computed
+const shades = computed(() => generateShades(selectedColorForVariations.value, 5));
+const tints = computed(() => generateTints(selectedColorForVariations.value, 5));
+const tones = computed(() => generateTones(selectedColorForVariations.value, 5));
 
 // Top colors (상위 10개만)
 const topColors = computed(() => {
@@ -107,6 +132,17 @@ onUnmounted(() => {
         </svg>
         Page Analysis
       </button>
+      <button
+        class="tab-button"
+        :class="{ active: activeTab === 'tools' }"
+        @click="switchTab('tools')"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4Z" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 8V12L14.5 14.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        Tools
+      </button>
     </div>
 
     <!-- Color Picker Tab -->
@@ -122,6 +158,50 @@ onUnmounted(() => {
           </svg>
           {{ isActive ? 'Picking...' : 'Start Picking' }}
         </button>
+      </div>
+
+      <!-- Format Selector -->
+      <div class="format-selector">
+        <button
+          v-for="format in formatOptions"
+          :key="format.value"
+          class="format-button"
+          :class="{ active: selectedFormat === format.value }"
+          @click="selectedFormat = format.value"
+        >
+          {{ format.label }}
+        </button>
+      </div>
+
+      <!-- Saved Colors Section -->
+      <div v-if="savedColors.length > 0" class="saved-section">
+        <div class="saved-header">
+          <h3>Saved Colors</h3>
+          <button class="clear-button" @click="clearSavedColors">
+            Clear All
+          </button>
+        </div>
+        <div class="saved-colors-grid">
+          <div
+            v-for="color in savedColors"
+            :key="color.hex"
+            class="saved-color-item"
+            @click="handleCopyColor(color, -1)"
+            :title="color.hex"
+          >
+            <div
+              class="saved-color-swatch"
+              :style="{ backgroundColor: color.hex }"
+            />
+            <button
+              class="unsave-button"
+              @click.stop="unsaveColor(color.hex)"
+              title="Remove"
+            >
+              ×
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="history-section">
@@ -159,9 +239,25 @@ onUnmounted(() => {
               :style="{ backgroundColor: color.hex }"
             />
             <div class="color-info">
-              <span class="color-hex">{{ color.hex }}</span>
-              <span class="color-rgb">rgb({{ color.rgb.r }}, {{ color.rgb.g }}, {{ color.rgb.b }})</span>
+              <span class="color-hex">{{ getColorString(color, selectedFormat) }}</span>
+              <span class="color-rgb" v-if="selectedFormat === 'tailwind' && color.tailwind">
+                {{ color.tailwind.hex }}
+              </span>
+              <span class="color-rgb" v-else>
+                {{ color.hex }}
+              </span>
             </div>
+            <button
+              class="save-button"
+              :class="{ saved: isColorSaved(color.hex) }"
+              @click.stop="isColorSaved(color.hex) ? unsaveColor(color.hex) : saveColor(color)"
+              :title="isColorSaved(color.hex) ? 'Remove from saved' : 'Save color'"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path v-if="isColorSaved(color.hex)" d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor"/>
+                <path v-else d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" stroke-width="2"/>
+              </svg>
+            </button>
             <div class="copy-indicator" :class="{ visible: copiedIndex === index }">
               Copied!
             </div>
@@ -301,6 +397,162 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- Tools Tab -->
+    <div v-else-if="activeTab === 'tools'" class="tab-content">
+      <!-- WCAG Contrast Checker -->
+      <div class="tool-section">
+        <h3 class="tool-title">WCAG Contrast Checker</h3>
+        <p class="tool-description">Check color contrast for accessibility compliance</p>
+
+        <div class="contrast-inputs">
+          <div class="color-input-group">
+            <label>Foreground</label>
+            <div class="color-input-wrapper">
+              <input
+                type="color"
+                v-model="contrastColor1"
+                class="color-picker-input"
+              />
+              <input
+                type="text"
+                v-model="contrastColor1"
+                class="color-text-input"
+                placeholder="#000000"
+              />
+            </div>
+          </div>
+          <div class="color-input-group">
+            <label>Background</label>
+            <div class="color-input-wrapper">
+              <input
+                type="color"
+                v-model="contrastColor2"
+                class="color-picker-input"
+              />
+              <input
+                type="text"
+                v-model="contrastColor2"
+                class="color-text-input"
+                placeholder="#FFFFFF"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="contrast-preview" :style="{
+          backgroundColor: contrastColor2,
+          color: contrastColor1
+        }">
+          <span>Sample Text</span>
+        </div>
+
+        <div class="contrast-result">
+          <div class="ratio-display">
+            <span class="ratio-value">{{ contrastResult.ratio.toFixed(2) }}</span>
+            <span class="ratio-label">:1</span>
+          </div>
+          <div class="wcag-badges">
+            <div class="wcag-badge" :class="{ pass: contrastResult.aa, fail: !contrastResult.aa }">
+              <strong>AA</strong>
+              <span>Normal</span>
+              <span class="badge-status">{{ contrastResult.aa ? '✓ Pass' : '✗ Fail' }}</span>
+            </div>
+            <div class="wcag-badge" :class="{ pass: contrastResult.aaLarge, fail: !contrastResult.aaLarge }">
+              <strong>AA</strong>
+              <span>Large</span>
+              <span class="badge-status">{{ contrastResult.aaLarge ? '✓ Pass' : '✗ Fail' }}</span>
+            </div>
+            <div class="wcag-badge" :class="{ pass: contrastResult.aaa, fail: !contrastResult.aaa }">
+              <strong>AAA</strong>
+              <span>Normal</span>
+              <span class="badge-status">{{ contrastResult.aaa ? '✓ Pass' : '✗ Fail' }}</span>
+            </div>
+            <div class="wcag-badge" :class="{ pass: contrastResult.aaaLarge, fail: !contrastResult.aaaLarge }">
+              <strong>AAA</strong>
+              <span>Large</span>
+              <span class="badge-status">{{ contrastResult.aaaLarge ? '✓ Pass' : '✗ Fail' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Color Variations -->
+      <div class="tool-section">
+        <h3 class="tool-title">Color Variations</h3>
+        <p class="tool-description">Generate shades, tints, and tones</p>
+
+        <div class="variation-input">
+          <label>Base Color</label>
+          <div class="color-input-wrapper">
+            <input
+              type="color"
+              v-model="selectedColorForVariations"
+              class="color-picker-input"
+            />
+            <input
+              type="text"
+              v-model="selectedColorForVariations"
+              class="color-text-input"
+              placeholder="#667eea"
+            />
+          </div>
+        </div>
+
+        <div class="variations">
+          <div class="variation-group">
+            <h4>Shades <span class="variation-hint">(+ Black)</span></h4>
+            <div class="variation-colors">
+              <div
+                v-for="(shade, index) in shades"
+                :key="shade"
+                class="variation-color"
+                :style="{ backgroundColor: shade }"
+                @click="copyToClipboard(shade)"
+                :title="shade"
+              />
+            </div>
+          </div>
+          <div class="variation-group">
+            <h4>Base Color</h4>
+            <div class="variation-colors">
+              <div
+                class="variation-color variation-base"
+                :style="{ backgroundColor: selectedColorForVariations }"
+                @click="copyToClipboard(selectedColorForVariations)"
+                :title="selectedColorForVariations"
+              />
+            </div>
+          </div>
+          <div class="variation-group">
+            <h4>Tints <span class="variation-hint">(+ White)</span></h4>
+            <div class="variation-colors">
+              <div
+                v-for="(tint, index) in tints"
+                :key="tint"
+                class="variation-color"
+                :style="{ backgroundColor: tint }"
+                @click="copyToClipboard(tint)"
+                :title="tint"
+              />
+            </div>
+          </div>
+          <div class="variation-group">
+            <h4>Tones <span class="variation-hint">(+ Gray)</span></h4>
+            <div class="variation-colors">
+              <div
+                v-for="(tone, index) in tones"
+                :key="tone"
+                class="variation-color"
+                :style="{ backgroundColor: tone }"
+                @click="copyToClipboard(tone)"
+                :title="tone"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -309,6 +561,10 @@ onUnmounted(() => {
   min-width: 480px;
   max-width: 540px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
 }
 
 /* Tab Navigation */
@@ -353,6 +609,27 @@ onUnmounted(() => {
 
 .tab-content {
   animation: fadeIn 0.2s ease;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.tab-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tab-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tab-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.tab-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 @keyframes fadeIn {
@@ -367,7 +644,41 @@ onUnmounted(() => {
 }
 
 .actions {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
+}
+
+/* Format Selector */
+.format-selector {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 20px;
+  padding: 4px;
+  background: var(--card-bg-color);
+  border-radius: 8px;
+}
+
+.format-button {
+  flex: 1;
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--font-color-2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.format-button:hover {
+  background: var(--card-bg-hover);
+  color: var(--font-color-1);
+}
+
+.format-button.active {
+  background: var(--purple);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
 }
 
 .start-button,
@@ -486,6 +797,113 @@ onUnmounted(() => {
 
 .color-item:hover {
   background: var(--card-bg-hover);
+}
+
+.save-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--font-color-3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.save-button:hover {
+  background: var(--card-bg-hover);
+  color: var(--purple);
+}
+
+.save-button.saved {
+  color: #fbbf24;
+}
+
+.save-button.saved:hover {
+  color: #f59e0b;
+}
+
+/* Saved Colors Section */
+.saved-section {
+  background: var(--card-bg-color);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.saved-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.saved-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--font-color-1);
+}
+
+.saved-colors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+  gap: 8px;
+}
+
+.saved-color-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.saved-color-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.saved-color-item:hover .unsave-button {
+  opacity: 1;
+}
+
+.saved-color-swatch {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
+}
+
+.unsave-button {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.unsave-button:hover {
+  background: rgba(239, 68, 68, 0.9);
 }
 
 .color-swatch {
@@ -759,5 +1177,236 @@ onUnmounted(() => {
   font-weight: 500;
   font-family: 'SF Mono', Monaco, monospace;
   color: var(--font-color-1);
+}
+
+/* Tools Tab */
+.tool-section {
+  background: var(--card-bg-color);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.tool-title {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--font-color-1);
+}
+
+.tool-description {
+  margin: 0 0 16px 0;
+  font-size: 13px;
+  color: var(--font-color-2);
+}
+
+/* Contrast Checker */
+.contrast-inputs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.color-input-group {
+  flex: 1;
+}
+
+.color-input-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--font-color-2);
+  margin-bottom: 8px;
+}
+
+.color-input-wrapper {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.color-picker-input {
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
+}
+
+.color-text-input {
+  flex: 1;
+  padding: 10px 12px;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'SF Mono', Monaco, monospace;
+  color: var(--font-color-1);
+  transition: all 0.2s ease;
+}
+
+.color-text-input:focus {
+  outline: none;
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.contrast-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
+}
+
+.contrast-preview span {
+  font-size: 24px;
+  font-weight: 700;
+  color: inherit;
+}
+
+.contrast-result {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.ratio-display {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 12px 20px;
+  background: var(--bg-color);
+  border-radius: 10px;
+}
+
+.ratio-value {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--font-color-1);
+  font-family: 'SF Mono', Monaco, monospace;
+}
+
+.ratio-label {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--font-color-2);
+}
+
+.wcag-badges {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  flex: 1;
+}
+
+.wcag-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--bg-color);
+  border: 2px solid var(--border-color);
+  transition: all 0.2s ease;
+}
+
+.wcag-badge.pass {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.wcag-badge.fail {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.wcag-badge strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--font-color-1);
+  margin-bottom: 2px;
+}
+
+.wcag-badge span:nth-child(2) {
+  font-size: 11px;
+  color: var(--font-color-2);
+  margin-bottom: 4px;
+}
+
+.badge-status {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.wcag-badge.pass .badge-status {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.wcag-badge.fail .badge-status {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Color Variations */
+.variation-input {
+  margin-bottom: 20px;
+}
+
+.variation-input label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--font-color-2);
+  margin-bottom: 8px;
+}
+
+.variations {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.variation-group h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--font-color-1);
+}
+
+.variation-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--font-color-3);
+}
+
+.variation-colors {
+  display: flex;
+  gap: 6px;
+}
+
+.variation-color {
+  flex: 1;
+  height: 48px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
+}
+
+.variation-color:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.variation-base {
+  border: 3px solid var(--purple);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.1), 0 0 0 4px rgba(102, 126, 234, 0.2);
 }
 </style>
