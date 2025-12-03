@@ -69,19 +69,20 @@ prismify/
 
 ## Core Modules
 
-### PluginManager (Facade)
+### PluginManager vs PluginManagerProxy
 
-**Single source of truth for all plugin operations.**
+**CRITICAL**: Different contexts use different managers!
 
+#### Background Script ONLY: PluginManager
 ```typescript
 import { PluginManager } from '@/core';
 
 const manager = PluginManager.getInstance();
 
-// Plugin registration
+// Plugin registration (Background ONLY!)
 await manager.register(myPlugin);
 
-// Plugin state
+// Plugin state management
 await manager.togglePlugin('plugin-id');
 await manager.enablePlugin('plugin-id');
 await manager.disablePlugin('plugin-id');
@@ -90,26 +91,50 @@ const isEnabled = await manager.isEnabled('plugin-id');
 // Plugin queries
 const plugins = manager.getPlugins();
 const plugin = manager.getPlugin('plugin-id');
-const enabled = await manager.getEnabledPlugins();
 
 // Settings
 const settings = await manager.getSettings('plugin-id');
 await manager.updateSetting('plugin-id', 'key', value);
 
-// Lifecycle
+// Lifecycle (Background manages state)
 await manager.activate('plugin-id', ctx);
 await manager.cleanup('plugin-id');
-await manager.cleanupAll();
-
-// Shortcuts
-const commands = manager.getCommands(); // For manifest.json
-const parsed = manager.parseCommand('plugin-id__shortcut-id');
 
 // State listeners
 manager.addListener((state) => console.log('State changed:', state));
 ```
 
-**Never access internal modules directly. Always use PluginManager.**
+#### Content Script / Popup / Options: PluginManagerProxy
+```typescript
+import { pluginManagerProxy } from '@/core';
+
+// Query plugins (RPC to Background)
+const plugins = await pluginManagerProxy.getPlugins();
+const plugin = await pluginManagerProxy.getPlugin('plugin-id');
+
+// Query state
+const state = await pluginManagerProxy.getPluginState('plugin-id');
+
+// Modify state (RPC to Background)
+await pluginManagerProxy.togglePlugin('plugin-id');
+await pluginManagerProxy.enablePlugin('plugin-id');
+await pluginManagerProxy.disablePlugin('plugin-id');
+
+// Settings
+const settings = await pluginManagerProxy.getPluginSettings('plugin-id');
+await pluginManagerProxy.updateSetting('plugin-id', 'key', value);
+
+// Real-time state updates (via Port connection)
+pluginManagerProxy.addListener((state) => {
+  console.log('State changed:', state);
+});
+```
+
+**Rules:**
+- ✅ Background: Use `PluginManager.getInstance()`
+- ✅ Content/Popup/Options: Use `pluginManagerProxy`
+- ❌ NEVER use `PluginManager` in Content/Popup/Options
+- ❌ NEVER call `register()` outside Background
 
 ### ShortcutManager
 
@@ -261,9 +286,11 @@ export const myPlugin: Plugin = {
     toggle: {
       name: 'Toggle Plugin',
       description: 'Toggle plugin on/off',
-      keys: ['Cmd', 'Shift', 'P'],
       handler: async (event, ctx) => {
-        // Shortcut logic here
+        // IMPORTANT: Shortcuts run in Content Script context!
+        // Use pluginManagerProxy, NOT PluginManager
+        const { pluginManagerProxy } = await import('@/core');
+        await pluginManagerProxy.togglePlugin('my-plugin');
       },
     },
   },
@@ -313,14 +340,16 @@ export async function registerPlugins(): Promise<void> {
 
 ```typescript
 onActivate: async (ctx) => {
-  const manager = PluginManager.getInstance();
-  const settings = await manager.getSettings('my-plugin');
+  // IMPORTANT: onActivate runs in Content Script context!
+  // Use pluginManagerProxy, NOT PluginManager
+  const { pluginManagerProxy } = await import('@/core');
+  const settings = await pluginManagerProxy.getPluginSettings('my-plugin');
 
   console.log('Enabled:', settings.enabled);
   console.log('Color:', settings.color);
 
-  // Listen to settings changes
-  manager.addListener((state) => {
+  // Listen to settings changes (real-time via Port)
+  pluginManagerProxy.addListener((state) => {
     const newSettings = state.plugins['my-plugin']?.settings;
     if (newSettings) {
       console.log('Settings changed:', newSettings);
@@ -353,7 +382,11 @@ export const myPlugin: Plugin = {
       name: 'Execute Plugin',
       description: 'Execute this plugin',
       handler: async (event, ctx) => {
-        // This triggers onExecute
+        // IMPORTANT: Shortcuts run in Content Script context!
+        // Use pluginManagerProxy for state queries
+        const { pluginManagerProxy } = await import('@/core');
+        // Custom execution logic or trigger onExecute
+        // Note: onExecute.execute() is called automatically by content script
       }
     }
   },
@@ -398,8 +431,9 @@ export const colorPicker: Plugin = {
     pickColor: {
       name: 'Pick Color',
       description: 'Pick color at cursor position',
-      handler: (event, ctx) => {
+      handler: async (event, ctx) => {
         // Open modal and trigger color picking
+        const { modalManager } = await import('@/core/ModalManager');
         if (!modalManager.isOpen('color-picker')) {
           modalManager.openModal('color-picker');
         }
@@ -444,7 +478,9 @@ hooks: {
 }
 ```
 
-**Important**: Keyboard shortcuts are handled via `keydown` listeners in content scripts, NOT via Chrome's Commands API. This prevents Chrome from intercepting keypresses that might conflict with webpage functionality.
+**Important**:
+- Keyboard shortcuts are handled via `keydown` listeners in content scripts, NOT via Chrome's Commands API
+- Shortcut handlers run in Content Script context, so use `pluginManagerProxy`, NOT `PluginManager`
 
 ### Background Script
 
@@ -468,25 +504,34 @@ export default defineBackground(async () => {
 ### Content Script
 
 ```typescript
-import { PluginManager, ShortcutManager } from '@/core';
-import { registerPlugins } from '@/plugins';
+import { ShortcutManager, pluginManagerProxy } from '@/core';
+import { allPlugins } from '@/plugins';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
   async main(ctx) {
-    const manager = PluginManager.getInstance();
-    await registerPlugins();
+    // IMPORTANT: Do NOT register plugins here! Background does that.
+    // Content Script only activates plugins based on state from Background
 
-    // Activate enabled plugins
-    for (const plugin of manager.getPlugins()) {
-      if (await manager.isEnabled(plugin.id)) {
-        await manager.activate(plugin.id, ctx);
+    const activatedPlugins = new Map();
+
+    // Query state from Background and activate enabled plugins
+    for (const plugin of allPlugins) {
+      const state = await pluginManagerProxy.getPluginState(plugin.id);
+
+      if (state?.enabled && plugin.onActivate) {
+        await plugin.onActivate(ctx);
+        activatedPlugins.set(plugin.id, plugin);
       }
     }
 
-    // Cleanup on invalidation
+    // Cleanup on invalidation (this tab only)
     ctx.onInvalidated(async () => {
-      await manager.cleanupAll();
+      for (const plugin of activatedPlugins.values()) {
+        if (plugin.onCleanup) {
+          await plugin.onCleanup();
+        }
+      }
     });
   },
 });
@@ -497,17 +542,24 @@ export default defineContentScript({
 ```vue
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { PluginManager } from '@/core';
+import { pluginManagerProxy } from '@/core';
 
-const manager = PluginManager.getInstance();
 const plugins = ref([]);
 
 onMounted(async () => {
-  plugins.value = manager.getPlugins();
+  // Query plugins from Background via RPC
+  plugins.value = await pluginManagerProxy.getPlugins();
+
+  // Listen to real-time state changes
+  pluginManagerProxy.addListener((state) => {
+    console.log('State updated:', state);
+    // Update UI reactively
+  });
 });
 
 async function togglePlugin(pluginId: string) {
-  await manager.togglePlugin(pluginId);
+  // Send RPC to Background
+  await pluginManagerProxy.togglePlugin(pluginId);
 }
 </script>
 ```
@@ -538,7 +590,7 @@ export default createRouter({
 Modal view components receive the plugin context and can communicate via:
 - Custom events: `window.dispatchEvent(new CustomEvent('event-name', { detail }))`
 - ModalManager: Access via `modalManager.isOpen()`, `modalManager.removeModal()`
-- Plugin state: Access via `PluginManager.getInstance().getSettings()`
+- Plugin state: Access via `pluginManagerProxy.getPluginSettings('plugin-id')`
 
 ### Reusable Vue Components
 
@@ -551,15 +603,28 @@ The project includes reusable UI components in `/components/`:
 Usage:
 ```vue
 <script setup lang="ts">
+import { ref, onMounted } from 'vue';
 import ToggleSwitch from '@/components/ToggleSwitch.vue';
 import TierTag from '@/components/TierTag.vue';
 import ShortcutBadge from '@/components/ShortcutBadge.vue';
+import { pluginManagerProxy } from '@/core';
+
+const enabled = ref(false);
+const shortcutKeys = ref([]);
+
+onMounted(async () => {
+  // Query state from Background
+  const state = await pluginManagerProxy.getPluginState('plugin-id');
+  // Get user-configured shortcut keys from PluginState
+  shortcutKeys.value = state?.shortcuts?.toggle?.keys || [];
+  enabled.value = state?.enabled || false;
+});
 </script>
 
 <template>
   <ToggleSwitch v-model="enabled" />
   <TierTag :tier="plugin.tier" />
-  <ShortcutBadge :keys="['Cmd', 'Shift', 'P']" />
+  <ShortcutBadge v-if="shortcutKeys.length" :keys="shortcutKeys" />
 </template>
 ```
 
@@ -654,7 +719,15 @@ interface PluginState {
   shortcuts: Record<string, ShortcutState>;
 }
 
-// Shortcut state (stored per shortcut)
+// Shortcut definition (in plugin)
+interface PluginShortcut {
+  name: string;
+  description: string;
+  handler: (event: KeyboardEvent, ctx: ContentScriptContext) => void | Promise<void>;
+  // NOTE: No 'keys' field here! Keys are stored in PluginState.shortcuts
+}
+
+// Shortcut state (stored per shortcut in PluginState)
 interface ShortcutState {
   keys?: ShortcutKey[]; // User-customized shortcut keys
 }
@@ -696,14 +769,34 @@ console.log(platform.name); // 'macOS' | 'Windows' | 'Linux' | 'Unknown'
 
 ## Keyboard Shortcuts
 
-Shortcuts use abstracted format that converts to platform-specific representations:
+**Important**: Shortcuts do NOT include `keys` in the plugin definition. Keys are stored in `PluginState.shortcuts` (user customization).
 
 ```typescript
-// Define shortcuts
+// Define shortcuts (NO keys field in plugin definition)
 shortcuts: {
   toggle: {
-    keys: ['Cmd', 'Shift', 'P'],  // Auto-converts: Mac → ⌘⇧P, Windows → Ctrl+Shift+P
-    handler: async (event, ctx) => { ... }
+    name: 'Toggle Plugin',
+    description: 'Toggle plugin on/off',
+    handler: async (event, ctx) => {
+      // IMPORTANT: Handlers run in Content Script context!
+      // Use pluginManagerProxy, NOT PluginManager
+      const { pluginManagerProxy } = await import('@/core');
+      await pluginManagerProxy.togglePlugin('my-plugin');
+    }
+  }
+}
+```
+
+**User registers shortcuts separately via PluginState:**
+```typescript
+// Stored in browser.storage.local
+interface PluginState {
+  enabled: boolean;
+  settings: Record<string, any>;
+  shortcuts: {
+    toggle: {
+      keys: ['Cmd', 'Shift', 'P'] // User-configured shortcut
+    }
   }
 }
 
@@ -711,26 +804,12 @@ shortcuts: {
 // Regular keys: 'A'-'Z', '0'-'9', 'F1'-'F12', etc.
 ```
 
-**Storage format** (for custom shortcuts):
-```typescript
-{
-  windows: 'Ctrl+Shift+P',      // Text format
-  mac: 'Command+Shift+P'         // Text format (NOT symbols!)
-}
-```
-
-**Chrome Commands API format** (in manifest.json):
-```json
-{
-  "plugin-id__shortcut-id": {
-    "suggested_key": {
-      "windows": "Ctrl+Shift+P",
-      "mac": "Command+Shift+P"
-    },
-    "description": "Shortcut description"
-  }
-}
-```
+**Shortcut Keys Format:**
+- `Cmd`: Auto-converts (Mac → Command, Windows → Ctrl)
+- `Shift`: Shift key
+- `Alt`: Alt/Option key
+- `Ctrl`: Control key (explicitly Ctrl on both platforms)
+- Regular keys: `'A'`, `'B'`, `'1'`, `'F1'`, etc.
 
 ## Business Model
 
@@ -742,9 +821,9 @@ Plugins are marked with `tier: 'free' | 'pro'`.
 ## Important Rules
 
 ### DO:
-- ✅ Use `PluginManager` for all plugin operations
+- ✅ **Background**: Use `PluginManager.getInstance()`
+- ✅ **Content/Popup/Options**: Use `pluginManagerProxy`
 - ✅ Use `ModalManager` for modal-based plugins
-- ✅ Use singleton pattern (`getInstance()`)
 - ✅ Follow the example plugin structure
 - ✅ Provide cleanup logic in plugins (for `onActivate` plugins)
 - ✅ Use TypeScript types from `@/types`
@@ -753,7 +832,9 @@ Plugins are marked with `tier: 'free' | 'pro'`.
 - ✅ Import Vue composition API functions (`ref`, `onMounted`, etc.) in Vue components
 
 ### DON'T:
-- ❌ Access `StorageManager` directly (use `PluginManager` instead)
+- ❌ **NEVER** use `PluginManager` in Content/Popup/Options (use `pluginManagerProxy`)
+- ❌ **NEVER** call `register()` outside Background script
+- ❌ Access `StorageManager` directly (use proxy/manager instead)
 - ❌ Create new data structures without good reason
 - ❌ Modify core modules (`core/`) unless refactoring
 - ❌ Forget cleanup logic in `onActivate` plugins (causes memory leaks)
@@ -788,9 +869,15 @@ Plugins are marked with `tier: 'free' | 'pro'`.
 
 ### Debugging:
 ```typescript
+// In Background script:
 const manager = PluginManager.getInstance();
-const debugInfo = await manager.getDebugInfo();
-console.log(debugInfo);
+const plugins = manager.getPlugins();
+console.log('Registered plugins:', plugins);
+
+// In Content/Popup/Options:
+const plugins = await pluginManagerProxy.getPlugins();
+const state = await pluginManagerProxy.getPluginState('plugin-id');
+console.log('Plugin state:', state);
 ```
 
 ### Clearing storage:
@@ -814,13 +901,19 @@ await settingsManager.initialize();
 const enabled = settingsManager.isPluginEnabled('id');
 ```
 
-### New (Simple, Encapsulated):
+### New (Simple, Context-Aware):
 ```typescript
+// In Background:
 import { PluginManager } from '@/core';
-
 const manager = PluginManager.getInstance();
 const plugins = manager.getPlugins();
-const enabled = await manager.isEnabled('id');
+await manager.togglePlugin('id');
+
+// In Content/Popup/Options:
+import { pluginManagerProxy } from '@/core';
+const plugins = await pluginManagerProxy.getPlugins();
+const state = await pluginManagerProxy.getPluginState('id');
+await pluginManagerProxy.togglePlugin('id');
 ```
 
 ## Additional Documentation
@@ -837,4 +930,9 @@ const enabled = await manager.isEnabled('id');
 
 ---
 
-**Remember**: Keep it simple. Use `PluginManager` for everything. Follow the example plugin.
+**Remember**:
+- **Context matters**: Background uses `PluginManager`, others use `pluginManagerProxy`
+- **Single Source of Truth**: Only Background registers plugins and manages state
+- **Content Script**: Queries state and activates plugins (this tab only)
+- **Popup/Options**: Queries state and sends RPC commands to Background
+- Follow the example plugin structure
