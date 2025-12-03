@@ -13,7 +13,7 @@ import type { Plugin } from '@/types';
 import { examplePlugin } from '@/plugins/implementations/example';
 import { copyProtectionBreakerPlugin } from '@/plugins/implementations/copy-breaker';
 import { colorPicker } from "@/plugins/implementations/color-picker";
-import {imageSpyPlugin} from "@/plugins/implementations/image-spy";
+import { assetSpyPlugin } from "@/plugins/implementations/asset-spy";
 
 /**
  * 모든 플러그인 정의 배열
@@ -23,7 +23,7 @@ export const allPlugins: Plugin[] = [
   examplePlugin,
   copyProtectionBreakerPlugin,
   colorPicker,
-  imageSpyPlugin
+  assetSpyPlugin
 ];
 
 /**

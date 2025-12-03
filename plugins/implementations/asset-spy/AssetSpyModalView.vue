@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { useImageSpy, type ImageAsset } from './useImageSpy';
+import { useAssetSpy, type Asset } from './useAssetSpy';
 
-const { assets, isLoading, collectAssets, downloadAsset, downloadAll, filterByType } = useImageSpy();
+const { assets, isLoading, collectAssets, downloadAsset, downloadAll, filterByType } = useAssetSpy();
 
 const selectedFilter = ref<'all' | 'img' | 'svg' | 'background'>('all');
 const searchQuery = ref('');
@@ -39,7 +39,7 @@ const handleRefresh = () => {
   collectAssets();
 };
 
-const handleDownload = (asset: ImageAsset) => {
+const handleDownload = (asset: Asset) => {
   downloadAsset(asset);
 };
 
@@ -68,7 +68,7 @@ const getTypeIcon = (type: string) => {
 </script>
 
 <template>
-  <div class="image-spy-modal">
+  <div class="asset-spy-modal">
     <!-- Header -->
     <div class="header">
       <div class="header-info">
@@ -217,7 +217,7 @@ const getTypeIcon = (type: string) => {
 </template>
 
 <style scoped>
-.image-spy-modal {
+.asset-spy-modal {
   min-width: 600px;
   max-width: 800px;
   display: flex;
@@ -322,7 +322,7 @@ const getTypeIcon = (type: string) => {
 }
 
 .search-bar svg {
-  color: var(--font-color-3);
+  color: var(--font-color-2);
   flex-shrink: 0;
 }
 
@@ -336,7 +336,7 @@ const getTypeIcon = (type: string) => {
 }
 
 .search-input::placeholder {
-  color: var(--font-color-3);
+  color: var(--font-color-2);
 }
 
 .filter-tabs {
@@ -417,7 +417,7 @@ const getTypeIcon = (type: string) => {
   position: relative;
   width: 100%;
   height: 160px;
-  background: var(--bg-color);
+  background: var(--bg-dark);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -499,7 +499,7 @@ const getTypeIcon = (type: string) => {
 
 .asset-size {
   font-size: 11px;
-  color: var(--font-color-3);
+  color: var(--font-color-2);
 }
 
 /* Empty State */
@@ -510,7 +510,7 @@ const getTypeIcon = (type: string) => {
   align-items: center;
   justify-content: center;
   padding: 60px 20px;
-  color: var(--font-color-3);
+  color: var(--font-color-2);
   text-align: center;
 }
 
@@ -528,7 +528,7 @@ const getTypeIcon = (type: string) => {
 
 .empty-state span {
   font-size: 13px;
-  color: var(--font-color-3);
+  color: var(--font-color-2);
 }
 
 .spinner {

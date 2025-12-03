@@ -1,9 +1,9 @@
 import type { Plugin } from '@/types';
 
-export const imageSpyPlugin: Plugin = {
+export const assetSpyPlugin: Plugin = {
   // === Metadata ===
-  id: 'image-spy',
-  name: 'Image Spy',
+  id: 'asset-spy',
+  name: 'Asset Spy',
   description: 'Collect and download images, SVGs, and CSS background images from any webpage',
   category: 'utility',
   version: '1.0.0',
@@ -11,7 +11,7 @@ export const imageSpyPlugin: Plugin = {
 
   // Icon
   icon: (container) => {
-    container.style.background = 'var(--plugin-image-spy, linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%))';
+    container.style.background = 'var(--plugin-asset-spy, linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%))';
     container.className += ' plugin-icon';
     container.innerHTML = `
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -54,7 +54,7 @@ export const imageSpyPlugin: Plugin = {
   onExecute: {
     type: 'OPEN_MODAL',
     execute: (ctx) => {
-      console.log('[Image Spy] Modal opened');
+      console.log('[Asset Spy] Modal opened');
     },
   },
 };

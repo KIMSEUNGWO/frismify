@@ -15,8 +15,8 @@ const routes = [
         component: () => import('@/plugins/implementations/color-picker/ColorPickerModalView.vue'),
     },
     {
-        path: '/image-spy',
-        component: () => import('@/plugins/implementations/image-spy/ImageSpyModalView.vue'),
+        path: '/asset-spy',
+        component: () => import('@/plugins/implementations/asset-spy/AssetSpyModalView.vue'),
     },
 ];
 

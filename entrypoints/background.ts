@@ -150,6 +150,26 @@ export default defineBackground(async () => {
             break;
           }
 
+          case MessageType.DOWNLOAD_IMAGE: {
+            const { url, filename } = message;
+            try {
+              // browser.downloads API는 background script에서만 제대로 작동
+              // 확장 프로그램 권한으로 CORS를 완전히 우회 가능
+              await browser.downloads.download({
+                url: url,
+                filename: filename,
+                saveAs: false,
+                conflictAction: 'uniquify',
+              });
+              console.log(`✅ Image downloaded: ${filename}`);
+              sendResponse({ success: true });
+            } catch (error) {
+              console.error('❌ Image download failed:', error);
+              sendResponse({ success: false, error: String(error) });
+            }
+            break;
+          }
+
           default:
             sendResponse(undefined);
         }
