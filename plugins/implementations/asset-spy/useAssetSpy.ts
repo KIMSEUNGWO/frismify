@@ -1,25 +1,7 @@
-import { ref } from 'vue';
-import { getSetting } from '@/utils/settings';
-import { MessageType } from '@/core/InstanceManager';
-
-// ============================================================================
-// 타입 정의
-// ============================================================================
-
-/**
- * Asset 인터페이스
- * 웹페이지에서 수집된 이미지 정보를 담는 객체
- */
-export interface Asset {
-  id: string;                          // 고유 식별자
-  type: 'img' | 'svg' | 'background';  // Asset 타입 (IMG 태그 | SVG 요소 | CSS 배경)
-  url: string;                         // 이미지 URL 또는 Data URL
-  element: Element;                    // DOM 요소 참조
-  width: number;                       // 이미지 너비 (px)
-  height: number;                      // 이미지 높이 (px)
-  filename: string;                    // 다운로드할 파일명 (확장자 포함)
-  thumbnail: string;                   // 썸네일 URL (미리보기용)
-}
+import {ref} from 'vue';
+import {getSetting} from '@/utils/settings';
+import {MessageType} from '@/core/InstanceManager';
+import {Asset, AssetType} from "@/plugins/implementations/asset-spy/asset-types";
 
 // ============================================================================
 // 상수
@@ -231,6 +213,45 @@ export function useAssetSpy() {
   };
 
   /**
+   * 이미지 파일 크기 계산 (비동기)
+   *
+   * Data URL이나 외부 URL에서 파일 크기를 추정합니다.
+   * - Data URL: Base64 디코딩으로 정확한 크기 계산
+   * - 외부 URL: Background Script를 통해 CORS 우회하여 크기 확인
+   *
+   * @param url - 이미지 URL
+   * @returns 파일 크기 (bytes) 또는 undefined (실패 시)
+   */
+  const getFileSize = async (url: string): Promise<number | undefined> => {
+    try {
+      // Data URL인 경우 정확한 크기 계산
+      if (url.startsWith('data:')) {
+        const base64Match = url.match(/base64,(.+)/);
+        if (base64Match) {
+          const base64 = base64Match[1];
+          // Base64는 4글자당 3바이트 (패딩 고려)
+          const padding = (base64.match(/=/g) || []).length;
+          return Math.floor((base64.length * 3) / 4) - padding;
+        }
+      }
+
+      // 외부 URL인 경우 Background Script를 통해 크기 확인 (CORS 우회)
+      const response = await browser.runtime.sendMessage({
+        type: MessageType.GET_FILE_SIZE,
+        url: url,
+      });
+
+      if (response?.success && response.size) {
+        return response.size;
+      }
+    } catch (error) {
+      console.error('[AssetSpy] Failed to get file size:', error);
+    }
+
+    return undefined;
+  };
+
+  /**
    * 다운로드 링크 생성 및 클릭
    *
    * a 태그를 동적으로 생성하여 파일 다운로드 트리거
@@ -254,6 +275,7 @@ export function useAssetSpy() {
   // Asset 수집
   // ==========================================================================
 
+
   /**
    * 웹페이지에서 이미지 Asset 수집
    *
@@ -270,128 +292,152 @@ export function useAssetSpy() {
   const collectAssets = async (): Promise<void> => {
     isLoading.value = true;
     const collectedAssets: Asset[] = [];
+    const PLUGIN_ID = 'asset-spy';
 
     try {
       // 사용자 설정 가져오기
-      const showImages = await getSetting<boolean>('asset-spy', 'showImages');
-      const showSVG = await getSetting<boolean>('asset-spy', 'showSVG');
-      const showBackgroundImages = await getSetting<boolean>('asset-spy', 'showBackgroundImages');
-      const minSize = await getSetting<number>('asset-spy', 'minSize');
+      const showImages = await getSetting<boolean>(PLUGIN_ID, 'showImages');
+      const showSVG = await getSetting<boolean>(PLUGIN_ID, 'showSVG');
+      const showBackgroundImages = await getSetting<boolean>(PLUGIN_ID, 'showBackgroundImages');
+      const minSize = await getSetting<number>(PLUGIN_ID, 'minSize');
 
-      // ----------------------------------------------------------------------
       // 1. IMG 태그 수집
-      // ----------------------------------------------------------------------
-      if (showImages) {
-        document.querySelectorAll('img').forEach((img) => {
-          // 유효한 이미지인지 확인 (로드 완료 && 크기 확인)
-          if (img.src && img.naturalWidth > 0 && img.naturalHeight > 0) {
-            // 최소 크기 필터링
-            if (img.naturalWidth >= minSize || img.naturalHeight >= minSize) {
-              const filename = getFilenameFromUrl(img.src);
+      if (showImages) collectedAssets.push(..._findByImg(minSize));
 
-              collectedAssets.push({
-                id: generateId(img.src, 'img'),
-                type: 'img',
-                url: img.src,
-                element: img,
-                width: img.naturalWidth,
-                height: img.naturalHeight,
-                filename: ensureExtension(filename, img.src, 'img'),
-                thumbnail: img.src,
-              });
-            }
-          }
-        });
-      }
-
-      // ----------------------------------------------------------------------
       // 2. SVG 요소 수집
-      // ----------------------------------------------------------------------
-      if (showSVG) {
-        document.querySelectorAll('svg').forEach((svg) => {
-          const rect = svg.getBoundingClientRect();
+      if (showSVG) collectedAssets.push(..._findBySvg(minSize));
 
-          // 화면에 렌더링된 크기 확인
-          if (rect.width > 0 && rect.height > 0) {
-            // 최소 크기 필터링
-            if (rect.width >= minSize || rect.height >= minSize) {
-              const dataUrl = svgToDataURL(svg);
-
-              if (dataUrl) {
-                collectedAssets.push({
-                  id: generateId(dataUrl, 'svg'),
-                  type: 'svg',
-                  url: dataUrl,
-                  element: svg,
-                  width: Math.round(rect.width),
-                  height: Math.round(rect.height),
-                  filename: 'image.svg',
-                  thumbnail: dataUrl,
-                });
-              }
-            }
-          }
-        });
-      }
-
-      // ----------------------------------------------------------------------
       // 3. CSS Background Images 수집
-      // ----------------------------------------------------------------------
-      if (showBackgroundImages) {
-        document.querySelectorAll('*').forEach((el) => {
-          const style = window.getComputedStyle(el as HTMLElement);
-          const bgImage = style.backgroundImage;
-
-          // CSS background-image 속성 확인
-          if (bgImage && bgImage !== 'none' && bgImage.startsWith('url(')) {
-            // URL 파싱: url("...") 또는 url(...)
-            const match = bgImage.match(BG_IMAGE_URL_REGEX);
-
-            if (match && match[1]) {
-              const url = match[1];
-
-              // Data URL은 제외 (인라인 이미지)
-              if (!url.startsWith('data:')) {
-                const rect = el.getBoundingClientRect();
-
-                // 최소 크기 필터링
-                if (rect.width >= minSize || rect.height >= minSize) {
-                  const filename = getFilenameFromUrl(url);
-
-                  collectedAssets.push({
-                    id: generateId(url, 'background'),
-                    type: 'background',
-                    url: url,
-                    element: el as HTMLElement,
-                    width: Math.round(rect.width),
-                    height: Math.round(rect.height),
-                    filename: ensureExtension(filename, url, 'background'),
-                    thumbnail: url,
-                  });
-                }
-              }
-            }
-          }
-        });
-      }
+      if (showBackgroundImages) collectedAssets.push(..._findByBg(minSize))
 
       // ----------------------------------------------------------------------
       // 중복 제거 (같은 URL)
       // ----------------------------------------------------------------------
-      const uniqueAssets = collectedAssets.filter(
-        (asset, index, self) =>
+      const uniqueAssets = collectedAssets.filter((asset, index, self) =>
           index === self.findIndex((a) => a.url === asset.url)
       );
 
+      // ----------------------------------------------------------------------
+      // 파일 크기 계산 (비동기, 백그라운드에서 실행)
+      // ----------------------------------------------------------------------
       assets.value = uniqueAssets;
+
+      // 파일 크기 비동기로 수집 (UI 블로킹 방지)
+      Promise.all(
+        uniqueAssets.map(async (asset) => {
+          asset.fileSize = await getFileSize(asset.url);
+        })
+      ).then(() => {
+        // 파일 크기 수집 완료 후 reactivity 트리거
+        assets.value = [...assets.value];
+      });
+
       console.log(`[AssetSpy] Collected ${uniqueAssets.length} assets`);
     } catch (error) {
-      console.error('[AssetSpy] Failed to collect assets:', error);
       assets.value = [];
+      console.error('[AssetSpy] Failed to collect assets:', error);
     } finally {
       isLoading.value = false;
     }
   };
+
+
+  function _findByImg(minSize: number) : Asset[] {
+    const list: Asset[] = [];
+
+    document.querySelectorAll('img:not(#modal-container img)').forEach((element) => {
+      const img = element as HTMLImageElement;
+      // 유효한 이미지인지 확인 (로드 완료 && 크기 확인)
+      if (img.src && img.naturalWidth > 0 && img.naturalHeight > 0) {
+        // 최소 크기 필터링
+        if (img.naturalWidth >= minSize || img.naturalHeight >= minSize) {
+          const filename = getFilenameFromUrl(img.src);
+
+          list.push({
+            id: generateId(img.src, 'img'),
+            type: AssetType.IMG,
+            url: img.src,
+            element: img,
+            width: img.naturalWidth,
+            height: img.naturalHeight,
+            filename: ensureExtension(filename, img.src, 'img'),
+            thumbnail: img.src,
+          });
+        }
+      }
+    });
+    return list;
+  }
+
+  function _findBySvg(minSize: number): Asset[] {
+    const list:Asset[] = [];
+    document.querySelectorAll('svg:not(#modal-container svg)').forEach((element) => {
+      const svg = element as SVGElement;
+      const rect = svg.getBoundingClientRect();
+
+      // 화면에 렌더링된 크기 확인
+      if (rect.width > 0 && rect.height > 0) {
+        // 최소 크기 필터링
+        if (rect.width >= minSize || rect.height >= minSize) {
+          const dataUrl = svgToDataURL(svg);
+
+          if (dataUrl) {
+            list.push({
+              id: generateId(dataUrl, 'svg'),
+              type: AssetType.SVG,
+              url: dataUrl,
+              element: svg,
+              width: Math.round(rect.width),
+              height: Math.round(rect.height),
+              filename: 'image.svg',
+              thumbnail: dataUrl,
+            });
+          }
+        }
+      }
+    });
+    return list;
+  }
+
+  function _findByBg(minSize: number): Asset[] {
+    const list: Asset[] = [];
+    document.querySelectorAll('*:not(#modal-container *)').forEach((el) => {
+      const style = window.getComputedStyle(el as HTMLElement);
+      const bgImage = style.backgroundImage;
+
+      // CSS background-image 속성 확인
+      if (bgImage && bgImage !== 'none' && bgImage.startsWith('url(')) {
+        // URL 파싱: url("...") 또는 url(...)
+        const match = bgImage.match(BG_IMAGE_URL_REGEX);
+
+        if (match && match[1]) {
+          const url = match[1];
+
+          // Data URL은 제외 (인라인 이미지)
+          if (!url.startsWith('data:')) {
+            const rect = el.getBoundingClientRect();
+
+            // 최소 크기 필터링
+            if (rect.width >= minSize || rect.height >= minSize) {
+              const filename = getFilenameFromUrl(url);
+
+              list.push({
+                id: generateId(url, 'background'),
+                type: AssetType.BACKGROUND,
+                url: url,
+                element: el as HTMLElement,
+                width: Math.round(rect.width),
+                height: Math.round(rect.height),
+                filename: ensureExtension(filename, url, 'background'),
+                thumbnail: url,
+              });
+            }
+          }
+        }
+      }
+    });
+    return list;
+  }
 
   // ==========================================================================
   // 다운로드
@@ -557,11 +603,11 @@ export function useAssetSpy() {
   /**
    * Asset 타입별 필터링
    *
-   * @param type - 필터링할 타입 ('img' | 'svg' | 'background' | 'all')
+   * @param type : AssetType - 필터링할 타입
    * @returns 필터링된 Asset 배열
    */
-  const filterByType = (type: 'img' | 'svg' | 'background' | 'all'): Asset[] => {
-    if (type === 'all') return assets.value;
+  const filterByType = (type: AssetType | null): Asset[] => {
+    if (type === null) return assets.value;
     return assets.value.filter((asset) => asset.type === type);
   };
 

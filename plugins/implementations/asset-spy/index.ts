@@ -46,7 +46,7 @@ export const assetSpyPlugin: Plugin = {
       type: 'number',
       label: 'Minimum size (px)',
       description: 'Ignore images smaller than this (width or height)',
-      defaultValue: 50,
+      defaultValue: 1,
     },
   },
 

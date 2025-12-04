@@ -1,167 +1,61 @@
-<script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
-import { useAssetSpy, type Asset } from './useAssetSpy';
-
-const { assets, isLoading, collectAssets, downloadAsset, downloadAll, filterByType } = useAssetSpy();
-
-const selectedFilter = ref<'all' | 'img' | 'svg' | 'background'>('all');
-const searchQuery = ref('');
-
-// 필터링된 assets
-const filteredAssets = computed(() => {
-  let filtered = filterByType(selectedFilter.value);
-
-  // 검색어 필터링
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase();
-    filtered = filtered.filter((asset) =>
-      asset.filename.toLowerCase().includes(query)
-    );
-  }
-
-  return filtered;
-});
-
-// 타입별 카운트
-const counts = computed(() => ({
-  all: assets.value.length,
-  img: assets.value.filter((a) => a.type === 'img').length,
-  svg: assets.value.filter((a) => a.type === 'svg').length,
-  background: assets.value.filter((a) => a.type === 'background').length,
-}));
-
-// 초기 로드
-onMounted(() => {
-  collectAssets();
-});
-
-const handleRefresh = () => {
-  collectAssets();
-};
-
-const handleDownload = (asset: Asset) => {
-  downloadAsset(asset);
-};
-
-const handleDownloadAll = () => {
-  if (filteredAssets.value.length === 0) return;
-
-  const confirmMsg = `Download ${filteredAssets.value.length} images?`;
-  if (confirm(confirmMsg)) {
-    downloadAll();
-  }
-};
-
-// Asset 타입 아이콘
-const getTypeIcon = (type: string) => {
-  switch (type) {
-    case 'img':
-      return '🖼️';
-    case 'svg':
-      return '📐';
-    case 'background':
-      return '🎨';
-    default:
-      return '📦';
-  }
-};
-</script>
-
 <template>
   <div class="asset-spy-modal">
-    <!-- Header -->
-    <div class="header">
-      <div class="header-info">
-        <h2>Image Assets</h2>
-        <span class="count-badge">{{ filteredAssets.length }} of {{ assets.length }}</span>
-      </div>
-      <button
-        class="refresh-button"
-        @click="handleRefresh"
-        :disabled="isLoading"
-        title="Refresh assets"
-      >
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          :class="{ spinning: isLoading }"
+    <div class="toolbar">
+      <div class="filter-tabs">
+        <button
+            class="filter-tab"
+            :class="{ active: selectedFilter === null }"
+            @click="selectedFilter = null"
         >
-          <path
-            d="M21 10C21 10 18.995 7.26822 17.3662 5.63824C15.7373 4.00827 13.4864 3 11 3C6.02944 3 2 7.02944 2 12C2 16.9706 6.02944 21 11 21C15.1031 21 18.5649 18.2543 19.6482 14.5"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
+          All ({{ counts.all }})
+        </button>
+        <button
+            class="filter-tab"
+            :class="{ active: selectedFilter === AssetType.IMG }"
+            @click="selectedFilter = AssetType.IMG"
+        >
+          IMG ({{ counts.img }})
+        </button>
+        <button
+            class="filter-tab"
+            :class="{ active: selectedFilter === AssetType.SVG }"
+            @click="selectedFilter = AssetType.SVG"
+        >
+          SVG ({{ counts.svg }})
+        </button>
+        <button
+            class="filter-tab"
+            :class="{ active: selectedFilter === AssetType.BACKGROUND }"
+            @click="selectedFilter = AssetType.BACKGROUND"
+        >
+          BG ({{ counts.background }})
+        </button>
+      </div>
+      <button class="refresh-button"
+              @click="handleRefresh"
+              :disabled="isLoading"
+              title="Refresh assets">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
+             :class="{ spinning: isLoading }">
+          <path d="M21 10C21 10 18.995 7.26822 17.3662 5.63824C15.7373 4.00827 13.4864 3 11 3C6.02944 3 2 7.02944 2 12C2 16.9706 6.02944 21 11 21C15.1031 21 18.5649 18.2543 19.6482 14.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M21 3V10H14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
     </div>
 
-    <!-- Search and Filters -->
-    <div class="toolbar">
-      <div class="search-bar">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
-          <path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Search by filename..."
-          class="search-input"
-        />
-      </div>
-
-      <div class="filter-tabs">
-        <button
-          class="filter-tab"
-          :class="{ active: selectedFilter === 'all' }"
-          @click="selectedFilter = 'all'"
-        >
-          All ({{ counts.all }})
-        </button>
-        <button
-          class="filter-tab"
-          :class="{ active: selectedFilter === 'img' }"
-          @click="selectedFilter = 'img'"
-        >
-          IMG ({{ counts.img }})
-        </button>
-        <button
-          class="filter-tab"
-          :class="{ active: selectedFilter === 'svg' }"
-          @click="selectedFilter = 'svg'"
-        >
-          SVG ({{ counts.svg }})
-        </button>
-        <button
-          class="filter-tab"
-          :class="{ active: selectedFilter === 'background' }"
-          @click="selectedFilter = 'background'"
-        >
-          BG ({{ counts.background }})
-        </button>
-      </div>
-    </div>
-
-    <!-- Asset Grid -->
     <div class="asset-grid" v-if="!isLoading && filteredAssets.length > 0">
       <div
-        v-for="asset in filteredAssets"
-        :key="asset.id"
-        class="asset-card"
+          v-for="asset in filteredAssets"
+          :key="asset.id"
+          class="asset-card"
       >
         <div class="asset-thumbnail">
           <img :src="asset.thumbnail" :alt="asset.filename" />
           <div class="asset-overlay">
             <button
-              class="download-button"
-              @click="handleDownload(asset)"
-              title="Download"
+                class="download-button"
+                @click="handleDownload(asset)"
+                title="Download"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -173,11 +67,13 @@ const getTypeIcon = (type: string) => {
         </div>
         <div class="asset-info">
           <div class="asset-type">
-            <span class="type-icon">{{ getTypeIcon(asset.type) }}</span>
-            <span class="type-label">{{ asset.type.toUpperCase() }}</span>
+            <span class="type-label">{{ asset.type }}</span>
           </div>
           <div class="asset-filename" :title="asset.filename">{{ asset.filename }}</div>
-          <div class="asset-size">{{ asset.width }} × {{ asset.height }}px</div>
+          <div class="asset-size">
+            {{ asset.width }} × {{ asset.height }}px
+            <span v-if="asset.fileSize" class="file-size"> • {{ formatFileSize(asset.fileSize) }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -202,8 +98,8 @@ const getTypeIcon = (type: string) => {
     <!-- Footer -->
     <div class="footer" v-if="filteredAssets.length > 0">
       <button
-        class="download-all-button"
-        @click="handleDownloadAll"
+          class="download-all-button"
+          @click="handleDownloadAll"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -216,6 +112,76 @@ const getTypeIcon = (type: string) => {
   </div>
 </template>
 
+<script setup lang="ts">
+import {computed, onMounted, ref} from 'vue';
+import {useAssetSpy} from './useAssetSpy';
+import {type Asset, AssetType} from "@/plugins/implementations/asset-spy/asset-types";
+
+const { assets, isLoading, collectAssets, downloadAsset, downloadAll, filterByType } = useAssetSpy();
+
+const selectedFilter = ref<AssetType | null>(null);
+
+// 필터링된 assets
+const filteredAssets = computed(() => filterByType(selectedFilter.value));
+
+// 타입별 카운트
+const counts = computed(() => {
+  const map = new Map<AssetType, number>();
+
+  for (const asset of assets.value) {
+    if (!map.has(asset.type)) {
+      map.set(asset.type, 0);
+    }
+    map.set(asset.type, (map.get(asset.type) ?? 0) + 1);
+  }
+
+  return {
+    all: assets.value.length,
+    img: map.get(AssetType.IMG) ?? 0,
+    svg: map.get(AssetType.SVG) ?? 0,
+    background: map.get(AssetType.BACKGROUND) ?? 0
+  }
+});
+
+// 초기 로드
+onMounted(() => {
+  collectAssets();
+});
+
+const handleRefresh = () => {
+  collectAssets();
+};
+
+const handleDownload = (asset: Asset) => {
+  downloadAsset(asset);
+};
+
+const handleDownloadAll = () => {
+  if (filteredAssets.value.length === 0) return;
+
+  const confirmMsg = `Download ${filteredAssets.value.length} images?`;
+  if (confirm(confirmMsg)) {
+    downloadAll();
+  }
+};
+
+/**
+ * 파일 크기를 사람이 읽기 쉬운 형식으로 변환
+ * @param bytes - 파일 크기 (bytes)
+ * @returns 포맷된 문자열 (예: "1.5 MB", "234 KB")
+ */
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 B';
+
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return `${(bytes / Math.pow(k, i)).toFixed(i === 0 ? 0 : 1)} ${sizes[i]}`;
+};
+
+</script>
+
 <style scoped>
 .asset-spy-modal {
   min-width: 600px;
@@ -227,44 +193,12 @@ const getTypeIcon = (type: string) => {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Header */
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-  flex-shrink: 0;
-}
-
-.header-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.header-info h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--font-color-1);
-}
-
-.count-badge {
-  display: inline-block;
-  padding: 4px 10px;
-  background: var(--card-bg-color);
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--font-color-2);
-}
-
 .refresh-button {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   background: var(--card-bg-color);
   border: none;
   border-radius: 8px;
@@ -299,48 +233,17 @@ const getTypeIcon = (type: string) => {
 /* Toolbar */
 .toolbar {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 12px;
+  margin-top: 10px;
   margin-bottom: 20px;
   flex-shrink: 0;
 }
 
-.search-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  background: var(--card-bg-color);
-  border-radius: 10px;
-  border: 1px solid var(--border-color);
-  transition: all 0.2s ease;
-}
-
-.search-bar:focus-within {
-  border-color: var(--purple);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.search-bar svg {
-  color: var(--font-color-2);
-  flex-shrink: 0;
-}
-
-.search-input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  font-size: 14px;
-  color: var(--font-color-1);
-  outline: none;
-}
-
-.search-input::placeholder {
-  color: var(--font-color-2);
-}
-
 .filter-tabs {
   display: flex;
+  height: 40px;
+  flex: 1;
   gap: 6px;
   padding: 4px;
   background: var(--card-bg-color);
@@ -475,14 +378,10 @@ const getTypeIcon = (type: string) => {
   margin-bottom: 6px;
 }
 
-.type-icon {
-  font-size: 14px;
-}
-
 .type-label {
   font-size: 10px;
   font-weight: 700;
-  color: var(--font-color-3);
+  color: var(--font-color-2);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }

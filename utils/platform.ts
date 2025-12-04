@@ -7,9 +7,9 @@ export type PlatformType = 'mac' | 'windows' | 'linux' | 'unknown';
 
 export class Platform {
   private static instance: Platform;
-  private _type: PlatformType;
-  private _userAgent: string;
-  private _platform: string;
+  private readonly _type: PlatformType;
+  private readonly _userAgent: string;
+  private readonly _platform: string;
 
   private constructor() {
     if (typeof navigator === 'undefined') {
@@ -122,23 +122,6 @@ export class Platform {
       default:
         return 'Unknown';
     }
-  }
-
-  /**
-   * 디버그용 정보 반환
-   */
-  public getDebugInfo(): {
-    type: PlatformType;
-    name: string;
-    platform: string;
-    userAgent: string;
-  } {
-    return {
-      type: this._type,
-      name: this.name,
-      platform: this._platform,
-      userAgent: this._userAgent,
-    };
   }
 
   /**

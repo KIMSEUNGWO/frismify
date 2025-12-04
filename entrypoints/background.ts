@@ -170,6 +170,31 @@ export default defineBackground(async () => {
             break;
           }
 
+          case MessageType.GET_FILE_SIZE: {
+            const { url } = message;
+            try {
+              // Background Script는 CORS 제한 없이 리소스 접근 가능
+              const response = await fetch(url, {
+                method: 'HEAD',
+                cache: 'force-cache',
+              });
+
+              const contentLength = response.headers.get('Content-Length');
+              if (contentLength) {
+                sendResponse({ success: true, size: parseInt(contentLength, 10) });
+              } else {
+                // Content-Length 없으면 GET으로 실제 다운로드
+                const fullResponse = await fetch(url, { cache: 'force-cache' });
+                const blob = await fullResponse.blob();
+                sendResponse({ success: true, size: blob.size });
+              }
+            } catch (error) {
+              console.error('❌ Get file size failed:', error);
+              sendResponse({ success: false, error: String(error) });
+            }
+            break;
+          }
+
           default:
             sendResponse(undefined);
         }
