@@ -103,6 +103,9 @@ const MODAL_GAP = 10; // 모달 간 간격
 const onMouseDown = (e: MouseEvent) => {
   if (!modal.value) return;
 
+  // 버튼 클릭은 드래그 시작하지 않음
+  if ((e.target as HTMLElement).closest('button')) return;
+
   const el = modal.value;
 
   isDragging = true;
@@ -114,8 +117,16 @@ const onMouseDown = (e: MouseEvent) => {
   startRight = parseFloat(getComputedStyle(el).right);
   startTop = parseFloat(getComputedStyle(el).top);
 
+  // 드래그 중 transition 비활성화 (부드러운 드래그)
+  el.style.transition = 'none';
+
+  // 전역 이벤트 리스너 등록
   document.addEventListener('mousemove', onMouseMove);
   document.addEventListener('mouseup', onMouseUp);
+  document.addEventListener('mouseleave', onMouseLeave);
+
+  // 텍스트 선택 방지
+  e.preventDefault();
 }
 
 const onMouseMove = (e: MouseEvent) => {
@@ -132,9 +143,20 @@ const onMouseMove = (e: MouseEvent) => {
 const onMouseUp = () => {
   if (!modal.value) return;
   isDragging = false;
+
+  // 이벤트 리스너 정리
   document.removeEventListener('mousemove', onMouseMove);
   document.removeEventListener('mouseup', onMouseUp);
+  document.removeEventListener('mouseleave', onMouseLeave);
+
   snapBackIntoView();
+}
+
+const onMouseLeave = (e: MouseEvent) => {
+  // 마우스가 document 밖으로 나갔을 때 (브라우저 창 밖)
+  if (e.relatedTarget === null && isDragging) {
+    onMouseUp();
+  }
 }
 
 const snapBackIntoView = () => {
@@ -217,14 +239,25 @@ const snapBackIntoView = () => {
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 10px;
+  cursor: grab;
+  user-select: none; /* 텍스트 선택 방지 */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.prismify-header:active {
   cursor: grabbing;
 }
+
 .plugin-info {
   display: flex;
   align-items: center;
   justify-content: flex-start;
   gap: 10px;
+  pointer-events: none; /* 드래그 시 텍스트 선택 방지 */
 }
+
 .plugin-info h3 {
   font-size: 14px;
   color: var(--font-color-1);
@@ -237,6 +270,7 @@ const snapBackIntoView = () => {
   gap: 8px;
   align-items: center;
   justify-content: right;
+  pointer-events: auto; /* 버튼 클릭 가능하도록 */
 }
 .btn-list button {
   width: 24px;
@@ -245,6 +279,7 @@ const snapBackIntoView = () => {
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer; /* 버튼 커서 */
 }
 
 .btn-list button svg {
