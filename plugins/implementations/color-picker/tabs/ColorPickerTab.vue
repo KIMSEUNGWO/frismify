@@ -3,7 +3,7 @@
     <div class="actions">
       <button
           class="start-button"
-          @click="handleStartPicking"
+          @click="handleStartBtn"
           :disabled="isActive"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -130,7 +130,7 @@ import {
   type PickedColor,
   useColorPicker
 } from "@/plugins/implementations/color-picker/useColorPicker";
-import {onMounted, onUnmounted, ref} from "vue";
+import {ref} from "vue";
 
 const { isActive, history, savedColors, selectedFormat, start, clearHistory, copyToClipboard, getColorString, saveColor, unsaveColor, isColorSaved, clearSavedColors } = useColorPicker();
 
@@ -141,12 +141,11 @@ const emits = defineEmits<{
   (e: 'getTab'): string;
 }>();
 
-const handleStartPicking = async () => {
-  if (emits('getTab') !== 'picker') {
-    emits('switchTab', 'picker');
-  }
-  await start();
-};
+const handleStartBtn = async () => await start();
+
+defineExpose({
+  handleStartBtn
+})
 
 const handleCopyColor = async (color: PickedColor, index: number) => {
   const colorString = getColorString(color, selectedFormat.value);
@@ -167,14 +166,6 @@ const formatOptions: { value: ColorFormat; label: string }[] = [
   { value: 'tailwind', label: 'Tailwind' },
 ];
 
-// 단축키에서 발생하는 이벤트 리스닝
-onMounted(() => {
-  window.addEventListener('colorpicker:start', handleStartPicking);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('colorpicker:start', handleStartPicking);
-});
 </script>
 <style scoped>
 

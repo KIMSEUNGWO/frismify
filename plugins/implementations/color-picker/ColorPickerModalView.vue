@@ -1,20 +1,16 @@
 <script setup lang="ts">
-import { ref, inject } from 'vue';
+  import {onMounted, onUnmounted, ref} from 'vue';
 import { useColorPicker } from './useColorPicker';
 import { usePageColorAnalyzer } from './usePageColorAnalyzer';
-import { PluginManager } from "@/core";
 import ColorPickerTab from "@/plugins/implementations/color-picker/tabs/ColorPickerTab.vue";
 import ColorAnalysisTab from "@/plugins/implementations/color-picker/tabs/ColorAnalysisTab.vue";
 import ColorToolsTab from "@/plugins/implementations/color-picker/tabs/ColorToolsTab.vue";
 
-const { selectedFormat, copyToClipboard, getColorString, saveColor } = useColorPicker();
+const { selectedFormat, start, copyToClipboard, getColorString, saveColor } = useColorPicker();
 const { isAnalyzing, analysis, analyze } = usePageColorAnalyzer();
 
 const activeTab = ref<'picker' | 'analysis' | 'tools'>('picker');
-
-const pluginId = String(inject('pluginId'));
-const manager = PluginManager.getInstance();
-
+const colorPickerRef = ref<typeof ColorPickerTab | null>(null);
 
 const props = defineProps({
   isFold: {
@@ -32,6 +28,22 @@ const switchTab = (tab: 'picker' | 'analysis' | 'tools') => {
 };
 const getTab = () => activeTab.value;
 
+
+const handleStartPicking = async () => {
+  if (activeTab.value !== 'picker') {
+    switchTab('picker');
+  }
+  await nextTick();
+  colorPickerRef.value?.handleStartBtn();
+};
+
+onMounted(() => {
+  window.addEventListener('colorpicker:start', handleStartPicking);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('colorpicker:start', handleStartPicking);
+});
 </script>
 
 <template>
@@ -73,6 +85,7 @@ const getTab = () => activeTab.value;
     </div>
 
     <ColorPickerTab v-if="activeTab === 'picker'" class="tab-content"
+                    ref="colorPickerRef"
                     @switchTab="switchTab"
                     @getTab="getTab"
     />
