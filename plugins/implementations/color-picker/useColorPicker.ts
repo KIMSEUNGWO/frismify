@@ -1,16 +1,8 @@
 import { ref } from 'vue';
 import {
-  hexToRgb as convertHexToRgb,
-  rgbToHsl,
-  rgbToHsv,
-  formatRgb,
-  formatHsl,
-  formatHsv,
-  findClosestTailwindColor,
-  type RGB,
-  type HSL,
-  type HSV,
+  findClosestTailwindColor
 } from './colorUtils';
+import {colorConverter} from "@/plugins/implementations/color-picker/color-types";
 
 export type ColorFormat = 'hex' | 'rgb' | 'hsl' | 'hsv' | 'tailwind';
 
@@ -43,10 +35,6 @@ export function useColorPicker() {
     }
   };
 
-  const hexToRgb = (hex: string): RGB => {
-    return convertHexToRgb(hex);
-  };
-
   const pickColor = async (): Promise<PickedColor | null> => {
     if (!('EyeDropper' in window)) {
       console.error('[ColorPicker] EyeDropper API not supported');
@@ -59,9 +47,9 @@ export function useColorPicker() {
       const result = await eyeDropper.open();
       console.log('[ColorPicker] Color picked:', result.sRGBHex);
       const hex = result.sRGBHex.toUpperCase();
-      const rgb = hexToRgb(hex);
-      const hsl = rgbToHsl(rgb);
-      const hsv = rgbToHsv(rgb);
+      const rgb = colorConverter.hexToRgb(hex);
+      const hsl = colorConverter.rgbToHsl(rgb);
+      const hsv = colorConverter.rgbToHsv(rgb);
       const tailwind = findClosestTailwindColor(hex);
 
       return {
@@ -122,16 +110,17 @@ export function useColorPicker() {
     }
   };
 
+
   const getColorString = (color: PickedColor, format: ColorFormat): string => {
     switch (format) {
       case 'hex':
         return color.hex;
       case 'rgb':
-        return formatRgb(color.rgb);
+        return colorConverter.format(color.rgb);
       case 'hsl':
-        return formatHsl(color.hsl);
+        return colorConverter.format(color.hsl);
       case 'hsv':
-        return formatHsv(color.hsv);
+        return colorConverter.format(color.hsv);
       case 'tailwind':
         return color.tailwind ? color.tailwind.name : color.hex;
       default:

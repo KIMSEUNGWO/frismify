@@ -1,293 +1,11 @@
-/**
- * Color Conversion Utilities
- *
- * 다양한 색상 포맷 간 변환 지원:
- * - HEX ↔ RGB ↔ HSL ↔ HSV
- * - Tailwind CSS 색상 매칭
- * - CSS Variable 형식
- */
-
-export interface RGB {
-  r: number; // 0-255
-  g: number; // 0-255
-  b: number; // 0-255
-}
-
-export interface HSL {
-  h: number; // 0-360
-  s: number; // 0-100
-  l: number; // 0-100
-}
-
-export interface HSV {
-  h: number; // 0-360
-  s: number; // 0-100
-  v: number; // 0-100
-}
-
-export interface CMYK {
-  c: number; // 0-100
-  m: number; // 0-100
-  y: number; // 0-100
-  k: number; // 0-100
-}
-
-// ========================================
-// HEX Conversions
-// ========================================
-
-export function hexToRgb(hex: string): RGB {
-  const cleanHex = hex.replace('#', '');
-  const r = parseInt(cleanHex.slice(0, 2), 16);
-  const g = parseInt(cleanHex.slice(2, 4), 16);
-  const b = parseInt(cleanHex.slice(4, 6), 16);
-  return { r, g, b };
-}
-
-export function rgbToHex(rgb: RGB): string {
-  const toHex = (n: number) => {
-    const hex = Math.round(n).toString(16);
-    return hex.length === 1 ? '0' + hex : hex;
-  };
-  return `#${toHex(rgb.r)}${toHex(rgb.g)}${toHex(rgb.b)}`.toUpperCase();
-}
-
-// ========================================
-// RGB ↔ HSL
-// ========================================
-
-export function rgbToHsl(rgb: RGB): HSL {
-  const r = rgb.r / 255;
-  const g = rgb.g / 255;
-  const b = rgb.b / 255;
-
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const delta = max - min;
-
-  let h = 0;
-  let s = 0;
-  const l = (max + min) / 2;
-
-  if (delta !== 0) {
-    s = l > 0.5 ? delta / (2 - max - min) : delta / (max + min);
-
-    switch (max) {
-      case r:
-        h = ((g - b) / delta + (g < b ? 6 : 0)) / 6;
-        break;
-      case g:
-        h = ((b - r) / delta + 2) / 6;
-        break;
-      case b:
-        h = ((r - g) / delta + 4) / 6;
-        break;
-    }
-  }
-
-  return {
-    h: Math.round(h * 360),
-    s: Math.round(s * 100),
-    l: Math.round(l * 100),
-  };
-}
-
-export function hslToRgb(hsl: HSL): RGB {
-  const h = hsl.h / 360;
-  const s = hsl.s / 100;
-  const l = hsl.l / 100;
-
-  let r: number, g: number, b: number;
-
-  if (s === 0) {
-    r = g = b = l; // achromatic
-  } else {
-    const hue2rgb = (p: number, q: number, t: number) => {
-      if (t < 0) t += 1;
-      if (t > 1) t -= 1;
-      if (t < 1 / 6) return p + (q - p) * 6 * t;
-      if (t < 1 / 2) return q;
-      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-      return p;
-    };
-
-    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-    const p = 2 * l - q;
-
-    r = hue2rgb(p, q, h + 1 / 3);
-    g = hue2rgb(p, q, h);
-    b = hue2rgb(p, q, h - 1 / 3);
-  }
-
-  return {
-    r: Math.round(r * 255),
-    g: Math.round(g * 255),
-    b: Math.round(b * 255),
-  };
-}
-
-// ========================================
-// RGB ↔ HSV
-// ========================================
-
-export function rgbToHsv(rgb: RGB): HSV {
-  const r = rgb.r / 255;
-  const g = rgb.g / 255;
-  const b = rgb.b / 255;
-
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const delta = max - min;
-
-  let h = 0;
-  const s = max === 0 ? 0 : delta / max;
-  const v = max;
-
-  if (delta !== 0) {
-    switch (max) {
-      case r:
-        h = ((g - b) / delta + (g < b ? 6 : 0)) / 6;
-        break;
-      case g:
-        h = ((b - r) / delta + 2) / 6;
-        break;
-      case b:
-        h = ((r - g) / delta + 4) / 6;
-        break;
-    }
-  }
-
-  return {
-    h: Math.round(h * 360),
-    s: Math.round(s * 100),
-    v: Math.round(v * 100),
-  };
-}
-
-export function hsvToRgb(hsv: HSV): RGB {
-  const h = hsv.h / 360;
-  const s = hsv.s / 100;
-  const v = hsv.v / 100;
-
-  const i = Math.floor(h * 6);
-  const f = h * 6 - i;
-  const p = v * (1 - s);
-  const q = v * (1 - f * s);
-  const t = v * (1 - (1 - f) * s);
-
-  let r: number, g: number, b: number;
-
-  switch (i % 6) {
-    case 0:
-      r = v;
-      g = t;
-      b = p;
-      break;
-    case 1:
-      r = q;
-      g = v;
-      b = p;
-      break;
-    case 2:
-      r = p;
-      g = v;
-      b = t;
-      break;
-    case 3:
-      r = p;
-      g = q;
-      b = v;
-      break;
-    case 4:
-      r = t;
-      g = p;
-      b = v;
-      break;
-    case 5:
-      r = v;
-      g = p;
-      b = q;
-      break;
-    default:
-      r = g = b = 0;
-  }
-
-  return {
-    r: Math.round(r * 255),
-    g: Math.round(g * 255),
-    b: Math.round(b * 255),
-  };
-}
-
-// ========================================
-// RGB ↔ CMYK
-// ========================================
-
-export function rgbToCmyk(rgb: RGB): CMYK {
-  const r = rgb.r / 255;
-  const g = rgb.g / 255;
-  const b = rgb.b / 255;
-
-  const k = 1 - Math.max(r, g, b);
-
-  if (k === 1) {
-    return { c: 0, m: 0, y: 0, k: 100 };
-  }
-
-  const c = (1 - r - k) / (1 - k);
-  const m = (1 - g - k) / (1 - k);
-  const y = (1 - b - k) / (1 - k);
-
-  return {
-    c: Math.round(c * 100),
-    m: Math.round(m * 100),
-    y: Math.round(y * 100),
-    k: Math.round(k * 100),
-  };
-}
-
-export function cmykToRgb(cmyk: CMYK): RGB {
-  const c = cmyk.c / 100;
-  const m = cmyk.m / 100;
-  const y = cmyk.y / 100;
-  const k = cmyk.k / 100;
-
-  const r = 255 * (1 - c) * (1 - k);
-  const g = 255 * (1 - m) * (1 - k);
-  const b = 255 * (1 - y) * (1 - k);
-
-  return {
-    r: Math.round(r),
-    g: Math.round(g),
-    b: Math.round(b),
-  };
-}
-
-// ========================================
-// Format Strings
-// ========================================
-
-export function formatRgb(rgb: RGB): string {
-  return `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
-}
-
-export function formatHsl(hsl: HSL): string {
-  return `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`;
-}
-
-export function formatHsv(hsv: HSV): string {
-  return `hsv(${hsv.h}, ${hsv.s}%, ${hsv.v}%)`;
-}
-
-export function formatCmyk(cmyk: CMYK): string {
-  return `cmyk(${cmyk.c}%, ${cmyk.m}%, ${cmyk.y}%, ${cmyk.k}%)`;
-}
 
 // ========================================
 // Tailwind CSS Colors
 // ========================================
 
 // Tailwind CSS v3 색상 팔레트 (주요 색상만 샘플링)
+import {colorConverter} from "@/plugins/implementations/color-picker/color-types";
+
 const TAILWIND_COLORS: Record<string, string> = {
   'slate-50': '#f8fafc',
   'slate-100': '#f1f5f9',
@@ -390,13 +108,13 @@ function colorDistance(rgb1: RGB, rgb2: RGB): number {
 }
 
 export function findClosestTailwindColor(hex: string): { name: string; hex: string; distance: number } | null {
-  const rgb = hexToRgb(hex);
+  const rgb = colorConverter.hexToRgb(hex);
   let closestName = '';
   let closestHex = '';
   let minDistance = Infinity;
 
   for (const [name, tailwindHex] of Object.entries(TAILWIND_COLORS)) {
-    const tailwindRgb = hexToRgb(tailwindHex);
+    const tailwindRgb = colorConverter.hexToRgb(tailwindHex);
     const distance = colorDistance(rgb, tailwindRgb);
 
     if (distance < minDistance) {
@@ -421,7 +139,7 @@ export function findClosestTailwindColor(hex: string): { name: string; hex: stri
  * Shades: 색상에 검정색을 추가 (어두운 버전)
  */
 export function generateShades(hex: string, steps: number = 5): string[] {
-  const rgb = hexToRgb(hex);
+  const rgb = colorConverter.hexToRgb(hex);
   const shades: string[] = [];
 
   for (let i = 1; i <= steps; i++) {
@@ -431,7 +149,7 @@ export function generateShades(hex: string, steps: number = 5): string[] {
       g: Math.round(rgb.g * (1 - factor)),
       b: Math.round(rgb.b * (1 - factor)),
     };
-    shades.push(rgbToHex(shade));
+    shades.push(colorConverter.rgbToHex(shade));
   }
 
   return shades;
@@ -441,7 +159,7 @@ export function generateShades(hex: string, steps: number = 5): string[] {
  * Tints: 색상에 흰색을 추가 (밝은 버전)
  */
 export function generateTints(hex: string, steps: number = 5): string[] {
-  const rgb = hexToRgb(hex);
+  const rgb = colorConverter.hexToRgb(hex);
   const tints: string[] = [];
 
   for (let i = 1; i <= steps; i++) {
@@ -451,7 +169,7 @@ export function generateTints(hex: string, steps: number = 5): string[] {
       g: Math.round(rgb.g + (255 - rgb.g) * factor),
       b: Math.round(rgb.b + (255 - rgb.b) * factor),
     };
-    tints.push(rgbToHex(tint));
+    tints.push(colorConverter.rgbToHex(tint));
   }
 
   return tints;
@@ -461,7 +179,7 @@ export function generateTints(hex: string, steps: number = 5): string[] {
  * Tones: 색상에 회색을 추가 (채도 감소 버전)
  */
 export function generateTones(hex: string, steps: number = 5): string[] {
-  const hsl = rgbToHsl(hexToRgb(hex));
+  const hsl = colorConverter.rgbToHsl(colorConverter.hexToRgb(hex));
   const tones: string[] = [];
 
   for (let i = 1; i <= steps; i++) {
@@ -471,7 +189,7 @@ export function generateTones(hex: string, steps: number = 5): string[] {
       s: Math.round(hsl.s * (1 - factor)),
       l: hsl.l,
     };
-    tones.push(rgbToHex(hslToRgb(tone)));
+    tones.push(colorConverter.rgbToHex(colorConverter.hslToRgb(tone)));
   }
 
   return tones;
@@ -498,8 +216,8 @@ function getRelativeLuminance(rgb: RGB): number {
  * @returns 대비율 (1 ~ 21)
  */
 export function getContrastRatio(hex1: string, hex2: string): number {
-  const lum1 = getRelativeLuminance(hexToRgb(hex1));
-  const lum2 = getRelativeLuminance(hexToRgb(hex2));
+  const lum1 = getRelativeLuminance(colorConverter.hexToRgb(hex1));
+  const lum2 = getRelativeLuminance(colorConverter.hexToRgb(hex2));
 
   const lighter = Math.max(lum1, lum2);
   const darker = Math.min(lum1, lum2);
@@ -530,3 +248,149 @@ export function checkWCAG(
     aaaLarge: ratio >= 4.5,
   };
 }
+
+// ========================================
+// Color Blindness Simulation
+// ========================================
+
+/**
+ * 색맹 유형
+ */
+export type ColorBlindnessType =
+  | 'protanopia'    // 적색맹 (빨강 감지 불가)
+  | 'deuteranopia'  // 녹색맹 (초록 감지 불가)
+  | 'tritanopia'    // 청색맹 (파랑 감지 불가)
+  | 'achromatopsia' // 전색맹 (색 감지 불가, 흑백)
+  | 'protanomaly'   // 약한 적색맹
+  | 'deuteranomaly' // 약한 녹색맹
+  | 'tritanomaly';  // 약한 청색맹
+
+/**
+ * 색맹 시뮬레이션 변환 행렬
+ * 참고: https://www.color-blindness.com/coblis-color-blindness-simulator/
+ */
+const COLOR_BLINDNESS_MATRICES: Record<ColorBlindnessType, number[][]> = {
+  // Protanopia (적색맹) - 빨강 인식 불가
+  protanopia: [
+    [0.567, 0.433, 0.0],
+    [0.558, 0.442, 0.0],
+    [0.0, 0.242, 0.758],
+  ],
+  // Deuteranopia (녹색맹) - 초록 인식 불가
+  deuteranopia: [
+    [0.625, 0.375, 0.0],
+    [0.7, 0.3, 0.0],
+    [0.0, 0.3, 0.7],
+  ],
+  // Tritanopia (청색맹) - 파랑 인식 불가
+  tritanopia: [
+    [0.95, 0.05, 0.0],
+    [0.0, 0.433, 0.567],
+    [0.0, 0.475, 0.525],
+  ],
+  // Achromatopsia (전색맹) - 흑백
+  achromatopsia: [
+    [0.299, 0.587, 0.114],
+    [0.299, 0.587, 0.114],
+    [0.299, 0.587, 0.114],
+  ],
+  // Protanomaly (약한 적색맹)
+  protanomaly: [
+    [0.817, 0.183, 0.0],
+    [0.333, 0.667, 0.0],
+    [0.0, 0.125, 0.875],
+  ],
+  // Deuteranomaly (약한 녹색맹)
+  deuteranomaly: [
+    [0.8, 0.2, 0.0],
+    [0.258, 0.742, 0.0],
+    [0.0, 0.142, 0.858],
+  ],
+  // Tritanomaly (약한 청색맹)
+  tritanomaly: [
+    [0.967, 0.033, 0.0],
+    [0.0, 0.733, 0.267],
+    [0.0, 0.183, 0.817],
+  ],
+};
+
+/**
+ * RGB 색상을 색맹 시뮬레이션으로 변환
+ */
+function applyColorBlindnessMatrix(rgb: RGB, matrix: number[][]): RGB {
+  const r = rgb.r / 255;
+  const g = rgb.g / 255;
+  const b = rgb.b / 255;
+
+  const newR = matrix[0][0] * r + matrix[0][1] * g + matrix[0][2] * b;
+  const newG = matrix[1][0] * r + matrix[1][1] * g + matrix[1][2] * b;
+  const newB = matrix[2][0] * r + matrix[2][1] * g + matrix[2][2] * b;
+
+  return {
+    r: Math.max(0, Math.min(255, Math.round(newR * 255))),
+    g: Math.max(0, Math.min(255, Math.round(newG * 255))),
+    b: Math.max(0, Math.min(255, Math.round(newB * 255))),
+  };
+}
+
+/**
+ * HEX 색상을 색맹 시뮬레이션으로 변환
+ * @param hex 원본 색상 (HEX)
+ * @param type 색맹 유형
+ * @returns 시뮬레이션된 색상 (HEX)
+ */
+export function simulateColorBlindness(hex: string, type: ColorBlindnessType): string {
+  const rgb = colorConverter.hexToRgb(hex);
+  const matrix = COLOR_BLINDNESS_MATRICES[type];
+  const simulated = applyColorBlindnessMatrix(rgb, matrix);
+  return rgbToHex(simulated);
+}
+
+/**
+ * 모든 색맹 유형에 대한 시뮬레이션 결과 반환
+ */
+export function simulateAllColorBlindness(hex: string): Record<ColorBlindnessType, string> {
+  return {
+    protanopia: simulateColorBlindness(hex, 'protanopia'),
+    deuteranopia: simulateColorBlindness(hex, 'deuteranopia'),
+    tritanopia: simulateColorBlindness(hex, 'tritanopia'),
+    achromatopsia: simulateColorBlindness(hex, 'achromatopsia'),
+    protanomaly: simulateColorBlindness(hex, 'protanomaly'),
+    deuteranomaly: simulateColorBlindness(hex, 'deuteranomaly'),
+    tritanomaly: simulateColorBlindness(hex, 'tritanomaly'),
+  };
+}
+
+/**
+ * 색맹 유형 이름 매핑
+ */
+export const COLOR_BLINDNESS_LABELS: Record<ColorBlindnessType, { name: string; description: string }> = {
+  protanopia: {
+    name: 'Protanopia',
+    description: 'Red-blind (1% of males)',
+  },
+  deuteranopia: {
+    name: 'Deuteranopia',
+    description: 'Green-blind (1% of males)',
+  },
+  tritanopia: {
+    name: 'Tritanopia',
+    description: 'Blue-blind (rare)',
+  },
+  achromatopsia: {
+    name: 'Achromatopsia',
+    description: 'Total color blindness',
+  },
+  protanomaly: {
+    name: 'Protanomaly',
+    description: 'Red-weak (1% of males)',
+  },
+  deuteranomaly: {
+    name: 'Deuteranomaly',
+    description: 'Green-weak (5% of males)',
+  },
+  tritanomaly: {
+    name: 'Tritanomaly',
+    description: 'Blue-weak (rare)',
+  },
+};
