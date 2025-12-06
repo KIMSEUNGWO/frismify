@@ -248,10 +248,6 @@ export const myPlugin: Plugin = {
     container.innerHTML = '<svg>...</svg>';
   },
 
-  // === Execution ===
-  matches: ['<all_urls>'],  // Optional, default: ['<all_urls>']
-  runAt: 'document_idle',   // Optional, default: 'document_idle'
-
   // === Settings Schema ===
   settings: {
     enabled: {
@@ -695,9 +691,6 @@ interface Plugin {
   version: string;
   tier: 'free' | 'pro';
   icon: (container: HTMLDivElement) => void;
-
-  matches?: string[];
-  runAt?: 'document_start' | 'document_end' | 'document_idle';
 
   onActivate?: (ctx: ContentScriptContext) => void | Promise<void>;
   onCleanup?: () => void | Promise<void>;

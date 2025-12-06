@@ -26,12 +26,6 @@ export interface Plugin {
   icon: (container: HTMLDivElement) => void;
 
   // === 실행 로직 ===
-  // URL 매칭 패턴 (기본값: ['<all_urls>'])
-  matches?: string[];
-
-  // 실행 시점 (기본값: 'document_idle')
-  runAt?: 'document_start' | 'document_end' | 'document_idle';
-
   // 활성화 시 호출
   onActivate?: (ctx: ContentScriptContext) => void | Promise<void>;
 

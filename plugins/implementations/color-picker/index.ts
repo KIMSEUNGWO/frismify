@@ -7,7 +7,6 @@ export const colorPicker:Plugin = {
     description: 'Pick colors from page',
     category: "inspector",
     tier: 'free',
-    runAt: 'document_idle',
     version: '0.0.1',
 
     icon: container => {

@@ -9,7 +9,8 @@
     </button>
   </header>
   <main>
-    <h3>Quick Tools</h3>
+    <h3 v-if="filteredPlugins.length !== 0">Quick Tools</h3>
+
     <!-- 로딩 상태 -->
     <div v-if="loading" class="loading">
       로딩 중...
