@@ -204,7 +204,7 @@ const snapBackIntoView = () => {
   top: 20px;
   right: 20px;
   background: var(--bg-dark);
-  z-index: 10000;
+  z-index: 2147483647;
   padding: 20px;
   color: var(--font-color-1);
   border-radius: 21px;

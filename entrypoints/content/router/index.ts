@@ -18,6 +18,10 @@ const routes = [
         path: '/asset-spy',
         component: () => import('@/plugins/implementations/asset-spy/AssetSpyModalView.vue'),
     },
+    {
+        path: '/image-converter',
+        component: () => import('@/plugins/implementations/image-converter/ImageConverterModalView.vue'),
+    },
 ];
 
 // 각 모달마다 새로운 router 인스턴스를 생성하는 factory 함수

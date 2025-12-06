@@ -320,11 +320,21 @@ const formatFileSize = (bytes: number): string => {
   position: relative;
   width: 100%;
   height: 160px;
-  background: var(--bg-dark);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+
+  /* 밝은 회색과 흰색 조합의 격자 무늬 */
+  background-color: #fff; /* 기본 배경색 */
+  background-image:
+      linear-gradient(45deg, #ccc 25%, transparent 25%),
+      linear-gradient(-45deg, #ccc 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #ccc 75%),
+      linear-gradient(-45deg, transparent 75%, #ccc 75%);
+  background-size: 16px 16px; /* 격자 크기 */
+  /* 격자 위치 조정 (background-position은 브라우저에 따라 약간 다르게 보일 수 있습니다) */
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
 }
 
 .asset-thumbnail img {

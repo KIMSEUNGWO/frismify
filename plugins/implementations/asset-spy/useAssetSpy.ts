@@ -2,6 +2,7 @@ import {ref} from 'vue';
 import {getSetting} from '@/utils/settings';
 import {MessageType} from '@/core/InstanceManager';
 import {Asset, AssetType} from "@/plugins/implementations/asset-spy/asset-types";
+import {SVGElement} from "linkedom/types/svg/element";
 
 // ============================================================================
 // 상수
@@ -375,7 +376,6 @@ export function useAssetSpy() {
       const svg = element as SVGElement;
       const rect = svg.getBoundingClientRect();
 
-      // 화면에 렌더링된 크기 확인
       if (rect.width > 0 && rect.height > 0) {
         // 최소 크기 필터링
         if (rect.width >= minSize || rect.height >= minSize) {
