@@ -1,13 +1,14 @@
-import type { Plugin } from '@/types';
+import type {ModalPlugin, Plugin} from '@/types';
 import {modalManager} from "@/core/ModalManager";
 
-export const colorPicker:Plugin = {
+export const colorPicker: ModalPlugin = {
     id: 'color-picker',
     name: 'Color Picker',
     description: 'Pick colors from page',
     category: "inspector",
     tier: 'free',
     version: '0.0.1',
+    isModal: true,
 
     icon: container => {
         container.style.background = 'var(--plugin-color-picker)';
@@ -30,11 +31,13 @@ export const colorPicker:Plugin = {
             }
         }
     },
-    onExecute: {
-        type: 'OPEN_MODAL',
-        execute: ctx => {
 
-        },
+    onOpen: async (ctx) => {
+        console.log('🎨 Color Picker modal opened');
+    },
+
+    onClose: async (ctx) => {
+        console.log('🎨 Color Picker modal closed');
     }
 
 }

@@ -1,6 +1,8 @@
 import {createApp} from "vue";
 import App from "@/entrypoints/content/App.vue";
 import { createModalRouter } from "@/entrypoints/content/router";
+import type { ContentScriptContext } from 'wxt/utils/content-script-context';
+import type { ModalPlugin } from '@/types';
 
 
 export class ModalManager {
@@ -8,6 +10,8 @@ export class ModalManager {
     private static instance: ModalManager;
     private modalStack: string[] = []; // Stack of plugin IDs
     private apps: Map<string, ReturnType<typeof createApp>> = new Map();
+    private ctx?: ContentScriptContext; // Content script context
+    private plugins: Map<string, ModalPlugin> = new Map(); // Plugin registry
 
     private readonly MODAL_CONTAINER = 'modal-container';
     private readonly PADDING = 20;
@@ -22,6 +26,13 @@ export class ModalManager {
         return ModalManager.instance;
     }
 
+    public initialize(ctx: ContentScriptContext, plugins: ModalPlugin[]) {
+        this.ctx = ctx;
+        for (const plugin of plugins) {
+            this.plugins.set(plugin.id, plugin);
+        }
+    }
+
     public isOpen(pluginId: string): boolean {
         return this.modalStack.includes(pluginId);
     }
@@ -34,7 +45,7 @@ export class ModalManager {
         return [...this.modalStack];
     }
 
-    public openModal(pluginId: string) {
+    public async openModal(pluginId: string) {
         // If already open, bring to front and highlight
         if (this.modalStack.includes(pluginId)) {
             this.bringToFront(pluginId);
@@ -45,11 +56,33 @@ export class ModalManager {
         this.createModal(pluginId);
         this.modalStack.push(pluginId);
         this.notifyStackChange();
+
+        // Call onOpen hook if exists
+        const plugin = this.plugins.get(pluginId);
+        if (plugin?.onOpen && this.ctx) {
+            try {
+                await plugin.onOpen(this.ctx);
+                console.log(`✅ Modal onOpen called: ${pluginId}`);
+            } catch (error) {
+                console.error(`❌ Modal onOpen error (${pluginId}):`, error);
+            }
+        }
     }
 
-    public removeModal(pluginId?: string) {
+    public async removeModal(pluginId?: string) {
         const targetId = pluginId ?? this.modalStack[this.modalStack.length - 1];
         if (!targetId) return;
+
+        // Call onClose hook if exists
+        const plugin = this.plugins.get(targetId);
+        if (plugin?.onClose && this.ctx) {
+            try {
+                await plugin.onClose(this.ctx);
+                console.log(`✅ Modal onClose called: ${targetId}`);
+            } catch (error) {
+                console.error(`❌ Modal onClose error (${targetId}):`, error);
+            }
+        }
 
         const app = this.apps.get(targetId);
         if (app) {

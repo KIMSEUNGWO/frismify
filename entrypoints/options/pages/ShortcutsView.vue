@@ -19,7 +19,7 @@
             <span class="plugin-version">v{{ plugin.version }}</span>
           </div>
           <ShortcutEdit
-              v-if="plugin.onExecute?.type === 'EXECUTE_PLUGIN'"
+              v-if="isExecutablePlugin(plugin)"
               :plugin-id="plugin.id"
               shortcut-id="execute"
               :config="config"
@@ -47,6 +47,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import type { AppState, Plugin, PluginState } from '@/types';
+import { isExecutablePlugin } from '@/types';
 import ShortcutItem from '../components/ShortcutItem.vue';
 import ShortcutEdit from "@/entrypoints/options/components/ShortcutEdit.vue";
 import {pluginManagerProxy} from "@/core/proxy/PluginManagerProxy";
@@ -58,7 +59,7 @@ const pluginsWithShortcuts = ref<Array<{ plugin: Plugin; config: PluginState }>>
 
 // 플러그인 로드
 const loadPlugins = async () => {
-  const plugins = allPlugins.filter(p => p.shortcuts || p.onExecute);
+  const plugins = allPlugins.filter(p => p.shortcuts || isExecutablePlugin(p));
   const result = [];
 
   for (const plugin of plugins) {

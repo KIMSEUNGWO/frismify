@@ -1,6 +1,6 @@
-import type { Plugin } from '@/types';
+import type {ModalPlugin} from '@/types';
 
-export const assetSpyPlugin: Plugin = {
+export const assetSpyPlugin: ModalPlugin = {
   // === Metadata ===
   id: 'asset-spy',
   name: 'Asset Spy',
@@ -8,6 +8,7 @@ export const assetSpyPlugin: Plugin = {
   category: 'utility',
   version: '1.0.0',
   tier: 'free',
+  isModal: true,
 
   // Icon
   icon: (container) => {
@@ -47,14 +48,6 @@ export const assetSpyPlugin: Plugin = {
       label: 'Minimum size (px)',
       description: 'Ignore images smaller than this (width or height)',
       defaultValue: 1,
-    },
-  },
-
-  // === Execute (Modal) ===
-  onExecute: {
-    type: 'OPEN_MODAL',
-    execute: (ctx) => {
-      console.log('[Asset Spy] Modal opened');
     },
   },
 };

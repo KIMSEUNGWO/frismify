@@ -14,13 +14,13 @@
  * @tier free
  */
 
-import type { Plugin } from '@/types';
+import type {PersistentPlugin, Plugin} from '@/types';
 import { RulerOverlay } from './RulerOverlay';
 
 // Plugin instance (module-scoped singleton per tab)
 let rulerInstance: RulerOverlay | null = null;
 
-export const rulerPlugin: Plugin = {
+export const rulerPlugin: PersistentPlugin = {
   // === Metadata ===
   id: 'ruler',
   name: 'Ruler',

@@ -1,4 +1,4 @@
-import type { Plugin } from '@/types';
+import type { PersistentPlugin } from '@/types';
 import { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { PluginManager } from '@/core';
 
@@ -17,7 +17,7 @@ import { PluginManager } from '@/core';
  * - 비즈니스 로직만!
  */
 
-const cssSpyPluginExample: Plugin = {
+const cssSpyPluginExample: PersistentPlugin = {
   // === 메타데이터 ===
   id: 'css-spy-example',
   name: 'CSS Spy Example',
@@ -99,10 +99,6 @@ const cssSpyPluginExample: Plugin = {
       },
     },
   },
-
-  // === 실행 설정 ===
-  matches: ['<all_urls>'],
-  runAt: 'document_idle',
 
   // === 라이프사이클 ===
   onActivate: async (ctx: ContentScriptContext) => {

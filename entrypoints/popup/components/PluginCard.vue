@@ -1,5 +1,5 @@
 <template>
-  <div class="plugin-card" :class="{ 'has-execute': plugin.onExecute }" @click="handleCardClick">
+  <div class="plugin-card" :class="{ 'has-execute': isExecutablePlugin(plugin) }" @click="handleCardClick">
     <div class="plugin-info">
       <div class="plugin-header">
         <div ref="iconContainer" class="plugin-icon"></div>
@@ -20,10 +20,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import type { Plugin, PluginState } from '@/types';
+import {ExecutablePlugin, isModalPlugin, ModalPlugin, Plugin, PluginState} from '@/types';
+import { isExecutablePlugin } from '@/types';
 import { pluginManagerProxy } from '@/core/proxy/PluginManagerProxy';
 import TierTag from '@/components/TierTag.vue';
 import ShortcutBadge from '@/components/ShortcutBadge.vue';
+import {modalManager} from "@/core/ModalManager";
+import {MessageType} from "@/core/InstanceManager";
 
 const iconContainer = ref<HTMLDivElement>();
 const pluginState = ref<PluginState | undefined>(undefined);
@@ -32,20 +35,18 @@ const props = defineProps<{
   plugin: Plugin;
 }>();
 
-const emit = defineEmits<{
-  execute: [plugin: Plugin];
-}>();
-
 // 등록된 execute 단축키가 있는지 확인
 const executeShortcutKeys = computed(() => {
-  if (!props.plugin.onExecute || !pluginState.value) return null;
+  if (!isExecutablePlugin(props.plugin) || !pluginState.value) return null;
   const keys = pluginState.value.shortcuts?.['execute']?.keys;
   return keys && keys.length > 0 ? keys : null;
 });
 
 const handleCardClick = () => {
-  if (props.plugin.onExecute) {
-    emit('execute', props.plugin);
+  if (isExecutablePlugin(props.plugin)) {
+    executePlugin(props.plugin);
+  } else if (isModalPlugin(props.plugin)) {
+    openModalPlugin(props.plugin);
   }
 };
 
@@ -57,6 +58,26 @@ onMounted(async () => {
   // 플러그인 상태 로드
   pluginState.value = await pluginManagerProxy.getPluginState(props.plugin.id);
 })
+
+// 플러그인 실행
+const executePlugin = async (plugin: ExecutablePlugin) => {
+  // Background로 메시지 전송
+  await browser.runtime.sendMessage({
+    type: MessageType.EXECUTE_PLUGIN,
+    pluginId : plugin.id,
+  });
+
+  window.close();
+}
+
+const openModalPlugin = async (plugin: ModalPlugin) => {
+  await browser.runtime.sendMessage({
+    type: MessageType.OPEN_MODAL,
+    pluginId : plugin.id,
+  });
+
+  window.close();
+}
 
 </script>
 

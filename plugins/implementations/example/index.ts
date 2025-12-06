@@ -4,10 +4,9 @@
  * 이 플러그인은 새로운 간소화된 API를 보여줍니다.
  */
 
-import type { Plugin } from '../../../types';
-import {browser} from "wxt/browser";
+import type {PersistentModalPlugin} from '@/types';
 
-export const examplePlugin: Plugin = {
+export const examplePlugin: PersistentModalPlugin = {
   // ===== 메타데이터 =====
   id: 'example-plugin',
   name: 'Example Plugin',
@@ -15,6 +14,7 @@ export const examplePlugin: Plugin = {
   category: 'utility',
   version: '1.0.0',
   tier: 'free',
+  isModal: true,
 
   // 아이콘 렌더링
   icon: (div) => {
@@ -28,10 +28,6 @@ export const examplePlugin: Plugin = {
       </svg>
     `;
   },
-
-  // ===== 실행 설정 =====
-  matches: ['*.tistory.com'],
-  runAt: 'document_idle',
 
   // ===== 설정 스키마 =====
   settings: {
@@ -100,12 +96,6 @@ export const examplePlugin: Plugin = {
     console.log('🧹 Example Plugin cleaned up!');
     const banner = document.getElementById('example-plugin-banner');
     banner?.remove();
-  },
-
-  onExecute: {
-    type: 'OPEN_MODAL',
-    execute: async (ctx) => {
-
-    },
   }
+
 };

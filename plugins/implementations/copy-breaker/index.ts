@@ -1,9 +1,9 @@
-import type { Plugin } from '@/types';
+import type {ExecutablePlugin} from '@/types';
 
 // 전역 상태 관리
 let cleanupFunctions: (() => void)[] = [];
 
-export const copyProtectionBreakerPlugin: Plugin = {
+export const copyProtectionBreakerPlugin: ExecutablePlugin = {
     // === 메타데이터 ===
     id: 'copy-breaker',
     name: 'Copy Breaker',
@@ -43,34 +43,20 @@ export const copyProtectionBreakerPlugin: Plugin = {
         },
     },
 
-    // === 실행 설정 ===
-    matches: ['<all_urls>'],
-    runAt: "document_idle",
-
     // === 플러그인 실행 (토글) ===
-    onExecute: {
-        type: "EXECUTE_PLUGIN",
-        execute: async (ctx) => {
-            // 활성화
-            console.log('🔓 Copy Protection Breaker activated!');
-            activateProtection(ctx);
+    onExecute: async (ctx) => {
+        // 활성화
+        console.log('🔓 Copy Protection Breaker activated!');
+        activateProtection(ctx);
 
-            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-            showToastModal({
-                status: 'activated',
-                shortcut: isMac ? '⌘⇧Y' : 'Ctrl+Shift+Y',
-                features: []
-            });
-        },
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        showToastModal({
+            status: 'activated',
+            shortcut: isMac ? '⌘⇧Y' : 'Ctrl+Shift+Y',
+            features: []
+        });
     },
 
-    // === 라이프사이클 ===
-
-    onCleanup: () => {
-        console.log('🧹 Copy Protection Breaker plugin cleaned up');
-        deactivateProtection();
-        cleanupFunctions = [];
-    }
 }
 
 // 보호 활성화 함수

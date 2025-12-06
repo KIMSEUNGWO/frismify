@@ -25,20 +25,6 @@ export interface Plugin {
   // 아이콘 렌더링 함수
   icon: (container: HTMLDivElement) => void;
 
-  // === 실행 로직 ===
-  // 활성화 시 호출
-  onActivate?: (ctx: ContentScriptContext) => void | Promise<void>;
-
-  // 정리 로직
-  onCleanup?: () => void | Promise<void>;
-
-  // 플러그인 실행 (Popup 클릭 시 또는 단축키로 실행)
-  // 단축키는 PluginState.shortcuts['execute']에 사용자가 등록
-  onExecute?: {
-    type: 'EXECUTE_PLUGIN' | 'OPEN_MODAL'
-    execute: (ctx: ContentScriptContext) => void | Promise<void>
-  },
-
   // === 설정 스키마 ===
   settings?: {
     [settingId: string]: PluginSetting;
@@ -49,7 +35,53 @@ export interface Plugin {
     [shortcutId: string]: PluginShortcut;
   };
 
+
+  // === 실행 로직 ===
+
+
+  // 플러그인 실행 (Popup 클릭 시 또는 단축키로 실행)
+  // 단축키는 PluginState.shortcuts['execute']에 사용자가 등록
 }
+
+export interface PersistentPlugin extends Plugin {
+  // 활성화 시 호출
+  onActivate: (ctx: ContentScriptContext) => void | Promise<void>;
+  // 정리 로직
+  onCleanup: () => void | Promise<void>;
+}
+
+export interface ExecutablePlugin extends Plugin {
+  onExecute: (ctx: ContentScriptContext) => void | Promise<void>;
+}
+
+export interface ModalPlugin extends Plugin {
+  isModal: true;
+  // 모달 열릴 때 초기화
+  onOpen?: (ctx: ContentScriptContext) => void | Promise<void>;
+  // 모달 닫을 때 초기화
+  onClose?: (ctx: ContentScriptContext) => void | Promise<void>;
+}
+
+export interface PersistentExecutablePlugin extends PersistentPlugin, ExecutablePlugin {
+}
+
+export interface PersistentModalPlugin extends PersistentPlugin, ModalPlugin {
+}
+
+// Type guard 함수들
+export function isPersistentPlugin(plugin: Plugin): plugin is PersistentPlugin {
+  return 'onActivate' in plugin && 'onCleanup' in plugin;
+}
+
+export function isExecutablePlugin(plugin: Plugin): plugin is ExecutablePlugin {
+  return 'onExecute' in plugin;
+}
+
+export function isModalPlugin(plugin: Plugin): plugin is ModalPlugin {
+  return 'isModal' in plugin && (plugin as any).isModal;
+}
+
+
 
 /**
  * 플러그인 설정 스키마

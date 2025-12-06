@@ -36,7 +36,6 @@
           v-for="plugin in filteredPlugins"
           :key="plugin.id"
           :plugin="plugin"
-          @execute="executePlugin"
       />
     </div>
 
@@ -46,7 +45,8 @@
 
 <script lang="ts" setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import type { Plugin, AppState } from '@/types';
+import type {Plugin, AppState, ExecutablePlugin} from '@/types';
+import { isExecutablePlugin } from '@/types';
 import { pluginManagerProxy } from '@/core/proxy/PluginManagerProxy';
 import { allPlugins } from '@/plugins';
 import { browser } from 'wxt/browser';
@@ -57,9 +57,7 @@ const loading = ref(true);
 const enabledPlugins = ref<Plugin[]>([]);
 
 // enabled된 플러그인만 표시
-const filteredPlugins = computed(() => {
-  return enabledPlugins.value;
-});
+const filteredPlugins = computed(() => enabledPlugins.value);
 
 // enabled된 플러그인만 로드
 // 로컬 allPlugins 정의와 Proxy로 가져온 상태를 조합
@@ -81,17 +79,6 @@ const loadEnabledPlugins = async () => {
 const handleSettingsChange = async (state: AppState) => {
   await loadEnabledPlugins();
 };
-
-// 플러그인 실행
-const executePlugin = async (plugin: Plugin) => {
-  // Background로 메시지 전송
-  await browser.runtime.sendMessage({
-    type: plugin.onExecute?.type,
-    pluginId : plugin.id,
-  });
-
-  window.close();
-}
 
 onMounted(async () => {
   // 설정 변경 리스너 등록
