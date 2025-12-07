@@ -28,7 +28,6 @@
     --plugin-color-picker: linear-gradient(135deg, #06B6D4, #22C55E);
     --plugin-ruler: linear-gradient(135deg, #FB923C, #FDE047);
     --plugin-grid-overlay: linear-gradient(135deg, #A855F7, #0EA5E9);
-    --plugin-copy-breaker: linear-gradient(135deg, #A78BFA, #F472B6);
 }
 
 /* Reset styles - :where()로 특이성 0 (scoped CSS가 우선) */

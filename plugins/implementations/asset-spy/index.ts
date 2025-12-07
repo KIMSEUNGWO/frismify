@@ -1,4 +1,5 @@
 import type {ModalPlugin} from '@/types';
+import {modalManager} from "@/core/ModalManager";
 
 export const assetSpyPlugin: ModalPlugin = {
   // === Metadata ===
@@ -50,4 +51,14 @@ export const assetSpyPlugin: ModalPlugin = {
       defaultValue: 1,
     },
   },
+
+  shortcuts: {
+    openModal: {
+      name: 'Modal Open',
+      description: 'Open Asset Spy Modal',
+      handler: (event, ctx) => {
+          modalManager.openModal('asset-spy');
+      }
+    },
+  }
 };

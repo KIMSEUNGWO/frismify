@@ -1,6 +1,6 @@
 
 <template>
-  <div ref="modal" class="prismify-container" :data-is-fold="modalMin" @mousedown="bringToFront">
+  <div ref="modal" class="prismify-container" :data-is-fold="modalMin" :style="{ zIndex: baseZIndex + modalIndex }" @mousedown="bringToFront">
     <header class="prismify-header" @mousedown="onMouseDown">
       <div class="plugin-info">
         <div ref="iconContainer" class="plugin-icon-small"></div>
@@ -41,6 +41,7 @@ const iconContainer = ref<HTMLDivElement>();
 const title = ref('');
 const modalMin = ref<boolean>(false);
 const modalIndex = ref<number>(0);
+const baseZIndex = 2147483645; // Base z-index for modals
 
 const updateModalIndex = () => {
   modalIndex.value = modalManager.getModalIndex(pluginId);
@@ -204,7 +205,7 @@ const snapBackIntoView = () => {
   top: 20px;
   right: 20px;
   background: var(--bg-dark);
-  z-index: 2147483647;
+  z-index: 2147483645;
   padding: 20px;
   color: var(--font-color-1);
   border-radius: 21px;

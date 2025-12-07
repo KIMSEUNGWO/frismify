@@ -901,7 +901,7 @@ export class RulerOverlay {
       font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
       font-size: 14px;
       font-weight: bold;
-      z-index: 2147483647;
+      z-index: 2147483646;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
       animation: prismify-ruler-fade 2s ease-in-out;
     `;

@@ -17,13 +17,18 @@ export const colorPicker: ModalPlugin = {
     },
 
     shortcuts: {
+        openModal: {
+            name: 'Modal Open',
+            description:   'Open Color Picker Modal',
+            handler: (event, ctx) => {
+                modalManager.openModal('color-picker');
+            }
+        },
         pickColor: {
             name: 'Pick Color',
             description: 'Pick color at cursor position',
-            handler: (event, ctx) => {
-                if (!modalManager.isOpen('color-picker')) {
-                    modalManager.openModal('color-picker');
-                }
+            handler: async (event, ctx) => {
+                await modalManager.openModal('color-picker');
                 // 모달이 열린 후 picking 시작 이벤트 발생
                 setTimeout(() => {
                     window.dispatchEvent(new CustomEvent('colorpicker:start'));
