@@ -203,6 +203,72 @@ export default defineBackground(async () => {
             break;
           }
 
+          case MessageType.START_NETWORK_THROTTLE: {
+            const { downloadThroughput, uploadThroughput, latency } = message;
+            try {
+              const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+              if (!tab.id) {
+                throw new Error('No active tab found');
+              }
+
+              // Attach debugger to current tab
+              await chrome.debugger.attach({ tabId: tab.id }, '1.3');
+
+              // Enable network domain
+              await chrome.debugger.sendCommand({ tabId: tab.id }, 'Network.enable');
+
+              // Emulate network conditions
+              await chrome.debugger.sendCommand(
+                { tabId: tab.id },
+                'Network.emulateNetworkConditions',
+                {
+                  offline: false,
+                  downloadThroughput,
+                  uploadThroughput,
+                  latency,
+                }
+              );
+
+              console.log('✅ Network throttling started');
+              sendResponse({ success: true });
+            } catch (error) {
+              console.error('❌ Network throttling failed:', error);
+              sendResponse({ success: false, error: String(error) });
+            }
+            break;
+          }
+
+          case MessageType.STOP_NETWORK_THROTTLE: {
+            try {
+              const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+              if (!tab.id) {
+                throw new Error('No active tab found');
+              }
+
+              // Disable network conditions (restore normal speed)
+              await chrome.debugger.sendCommand(
+                { tabId: tab.id },
+                'Network.emulateNetworkConditions',
+                {
+                  offline: false,
+                  downloadThroughput: -1, // unlimited
+                  uploadThroughput: -1,   // unlimited
+                  latency: 0,
+                }
+              );
+
+              // Detach debugger
+              await chrome.debugger.detach({ tabId: tab.id });
+
+              console.log('✅ Network throttling stopped');
+              sendResponse({ success: true });
+            } catch (error) {
+              console.error('❌ Stop network throttling failed:', error);
+              sendResponse({ success: false, error: String(error) });
+            }
+            break;
+          }
+
           default:
             sendResponse(undefined);
         }

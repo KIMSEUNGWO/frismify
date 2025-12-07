@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import ColorBlindnessTab from './tabs/ColorBlindnessTab.vue';
+import NetworkThrottleTab from './tabs/NetworkThrottleTab.vue';
 
 const activeTab = ref<'colorblindness' | 'network' | 'screen-reader' | 'keyboard'>('colorblindness');
 
@@ -28,7 +29,6 @@ const switchTab = (tab: 'colorblindness' | 'network' | 'screen-reader' | 'keyboa
         class="tab-button"
         :class="{ active: activeTab === 'network' }"
         @click="switchTab('network')"
-        disabled
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M12 2v20M2 12h20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -64,6 +64,8 @@ const switchTab = (tab: 'colorblindness' | 'network' | 'screen-reader' | 'keyboa
 
     <!-- Tab Content -->
     <ColorBlindnessTab v-if="activeTab === 'colorblindness'" class="tab-content" />
+
+    <NetworkThrottleTab v-else-if="activeTab === 'network'" class="tab-content" />
 
     <!-- Placeholder for future tabs -->
     <div v-else class="tab-content coming-soon">
