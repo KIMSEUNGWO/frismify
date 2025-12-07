@@ -22,25 +22,22 @@
         class="shortcut-popover"
       >
         <div class="popover-content">
-          <p class="popover-hint">Press any key combination</p>
+          <p class="popover-hint">{{ popoverHintText }}</p>
           <div class="key-preview-container">
             <div v-if="editingKeys.length === 0" class="placeholder">
               <span>e.g.</span>
-              <span class="key">⌘</span>
-              <span class="key">⇧</span>
-              <span class="key">L</span>
+              <span class="key" v-for="key in shortcutManager.format(['Cmd', 'Shift', 'L'])" :key="key">{{ key }}</span>
             </div>
-            <div v-else class="key-preview">
-              <span class="key" v-for="key in editingDisplayKey.split('')" :key="key">{{ key }}</span>
+            <div v-else class="key-preview" :class="validationClass">
+              <span class="key" v-for="(key, index) in displayKeysArray" :key="index">{{ key }}</span>
             </div>
           </div>
           <input
             ref="inputRef"
             type="text"
-            :value="editingDisplayKey"
             class="popover-input"
             @keydown.prevent="captureKey"
-            @keyup="saveOnKeyUp"
+            @keyup="handleKeyUp"
             name="popover-input"
             readonly
           />
@@ -70,7 +67,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue';
 import { PluginManager, ShortcutManager } from '@/core';
-import type { PluginShortcut, ShortcutKey, PluginState } from '@/types';
+import type { ShortcutKey, PluginState } from '@/types';
 import ShortcutBadge from '@/components/ShortcutBadge.vue';
 
 const props = defineProps<{
@@ -89,7 +86,17 @@ const shortcutManager = ShortcutManager.getInstance();
 const isEditing = ref(false);
 const inputRef = ref<HTMLInputElement | null>(null);
 const editingKeys = ref<ShortcutKey[]>([]);
-const editingDisplayKey = ref('');
+const editingDisplayKey = ref<string[]>([]);
+const validationState = ref<'valid' | 'invalid' | 'duplicate' | null>(null);
+const popoverHintText = ref('Press any key combination');
+
+const modifiers = ['Ctrl', 'Alt', 'Shift', 'Cmd', 'Control', 'Meta'];
+
+// 표시할 키 배열 (formatted 문자열을 개별 키로 분리)
+const displayKeysArray = computed(() => {
+  if (!editingDisplayKey.value) return [];
+  return shortcutManager.format(editingKeys.value);
+});
 
 // 표시할 단축키 키 배열 (등록된 키만)
 const displayKeys = computed(() => {
@@ -102,56 +109,175 @@ const hasShortcut = computed(() => {
   return !!displayKeys.value;
 });
 
+// Validation class for key preview
+const validationClass = computed(() => {
+  if (validationState.value === 'valid') return 'is-valid';
+  if (validationState.value === 'invalid') return 'is-invalid';
+  if (validationState.value === 'duplicate') return 'is-duplicate';
+  return '';
+});
+
 // 팝오버 열기
 const openPopover = () => {
   isEditing.value = true;
   editingKeys.value = [];
-  editingDisplayKey.value = '';
+  editingDisplayKey.value = [];
+  validationState.value = null;
+  popoverHintText.value = 'Press any key combination';
 };
 
 // 팝오버 닫기
 const closePopover = () => {
   isEditing.value = false;
+  validationState.value = null;
+};
+
+// 유효한 키 조합인지 검사 (modifier + regular key 필수)
+const isValidCombination = (keys: ShortcutKey[]): boolean => {
+  if (keys.length < 2) return false;
+
+  const hasModifier = keys.some(key => modifiers.includes(key));
+  const hasRegularKey = keys.some(key => !modifiers.includes(key));
+
+  return hasModifier && hasRegularKey;
+};
+
+// 다른 단축키와 중복되는지 검사
+const isDuplicate = async (keys: ShortcutKey[]): Promise<boolean> => {
+  const states = await manager.getPluginStates()
+
+  for (const [pluginId, pluginState] of Object.entries(states)) {
+    if (!pluginState.shortcuts) continue;
+
+    for (const [shortcutId, shortcutState] of Object.entries(pluginState.shortcuts)) {
+      // 현재 편집 중인 단축키는 제외
+      if (pluginId === props.pluginId && shortcutId === props.shortcutId) continue;
+
+      const existingKeys = shortcutState.keys;
+      if (!existingKeys || existingKeys.length === 0) continue;
+
+      // 키 배열이 완전히 동일한지 검사
+      if (existingKeys.length === keys.length &&
+          existingKeys.every((key, index) => key === keys[index])) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 };
 
 // 키 조합 캡처
+const captureModifers = [
+    ''
+];
 const captureKey = (event: KeyboardEvent) => {
-  const keys: ShortcutKey[] = [];
 
-  // Modifier keys
-  if (event.metaKey || event.ctrlKey) keys.push('Cmd');
-  if (event.shiftKey) keys.push('Shift');
-  if (event.altKey) keys.push('Alt');
+  const code = event.code;
 
-  // Regular key
-  if (!['Control', 'Alt', 'Shift', 'Meta'].includes(event.key)) {
-    keys.push(event.key.toUpperCase());
-  }
-
-  if (keys.length > 1) {
-    editingKeys.value = keys;
-    editingDisplayKey.value = shortcutManager.format(keys);
-  }
-};
-
-// keyup에서 저장
-const saveOnKeyUp = async (event: KeyboardEvent) => {
-  // 수정자 키만 눌렀을 때는 저장하지 않음
-  if (['Control', 'Alt', 'Shift', 'Meta'].includes(event.key)) {
+  if (code === 'Escape') {
+    closePopover();
     return;
   }
 
-  // 유효한 키 조합이 있으면 저장
-  if (editingKeys.value.length > 1) {
-    await manager.updateShortcutKeys(
-      props.pluginId,
-      props.shortcutId,
-      editingKeys.value
-    );
+  const keys: ShortcutKey[] = [];
 
-    emit('updated');
-    closePopover();
+  if (event.metaKey) keys.push('Cmd');
+  if (event.ctrlKey) keys.push('Ctrl');
+  if (event.shiftKey) keys.push('Shift');
+  if (event.altKey) keys.push('Alt');
+
+  if (!modifiers.includes(event.key)) {
+    // 일반 키 처리
+
+    if (code.startsWith('Digit')) {
+      // 숫자
+      keys.push(code.substring(5));
+    } else if (code.startsWith('Key')) {
+      // 일반 키
+      keys.push(code.substring(3));
+    } else if (code.startsWith('F') && code.length <= 3) {
+      // Function 키
+      keys.push(code);
+    } else if (code.startsWith('Arrow')) {
+      // 화살표
+      keys.push(code.substring(5));
+    } else if (code === 'Space') {
+      keys.push(code);
+    } else {
+      keys.push(code.toUpperCase());
+    }
   }
+
+  // editingKeys 업데이트
+  editingKeys.value = keys;
+
+  if (keys.length > 0) {
+    editingDisplayKey.value = shortcutManager.format(keys);
+  } else {
+    editingDisplayKey.value = [];
+  }
+
+  console.log(keys);
+
+  // Reset validation state on new input
+  validationState.value = null;
+  popoverHintText.value = 'Press any key combination';
+};
+
+// keyup에서 유효성 검사 및 저장
+const handleKeyUp = async (event: KeyboardEvent) => {
+
+  const code = event.code;
+  // Enter는 팝오버 닫기
+  if (code === 'Escape') {
+    closePopover();
+    return;
+  }
+
+  // Modifier 키만 떼었을 때는 저장하지 않음 (일반 키를 떼었을 때만 저장)
+  if (modifiers.includes(code)) {
+    return;
+  }
+
+  // editingKeys가 비어있으면 무시
+  if (editingKeys.value.length === 0) {
+    return;
+  }
+
+  // 유효한 키 조합인지 검사 (Modifier + Regular Key 필수)
+  if (!isValidCombination(editingKeys.value)) {
+    validationState.value = 'invalid';
+    popoverHintText.value = 'Must include modifier + key';
+    return;
+  }
+
+  // 중복 검사
+  const duplicate = await isDuplicate(editingKeys.value);
+
+  if (duplicate) {
+    validationState.value = 'duplicate';
+    popoverHintText.value = 'Shortcut already in use';
+    return;
+  }
+
+  // 유효한 조합이고 중복되지 않음 → 저장
+  validationState.value = 'valid';
+  popoverHintText.value = 'Shortcut saved!';
+
+  // 저장
+  await manager.updateShortcutKeys(
+    props.pluginId,
+    props.shortcutId,
+    editingKeys.value
+  );
+
+  emit('updated');
+
+  // 300ms 후 팝오버 닫기
+  setTimeout(() => {
+    closePopover();
+  }, 300);
 };
 
 // 삭제
@@ -296,5 +422,18 @@ watch(isEditing, async (newVal) => {
 
 .key-preview span {
   color: var(--font-color-1);
+  transition: background-color 0.2s ease;
+}
+
+/* Validation states */
+.key-preview.is-valid .key {
+  background-color: #22C55E !important;
+  color: white;
+}
+
+.key-preview.is-invalid .key,
+.key-preview.is-duplicate .key {
+  background-color: #EF4444 !important;
+  color: white;
 }
 </style>

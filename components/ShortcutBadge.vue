@@ -34,9 +34,8 @@ const emit = defineEmits<{
 }>();
 
 const shortcutManager = ShortcutManager.getInstance();
-
 const displayKeys = computed(() => {
-  return shortcutManager.format(props.keys).split('');
+  return shortcutManager.format(props.keys);
 });
 
 const handleClick = (event: MouseEvent) => {

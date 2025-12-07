@@ -108,10 +108,10 @@ export interface PluginShortcut {
  * 단축키 키 타입
  */
 export type ShortcutKey =
-  | 'Cmd'    // Mac: Command, Windows: Ctrl
-  | 'Shift'
-  | 'Alt'
-  | 'Ctrl'
+  | 'Ctrl' // Mac: control
+  | 'Alt' // Mac : option
+  | 'Cmd' // Mac : Command left
+  | 'Shift' // Mac : Shift left
   | string;  // 일반 키 (A-Z, 0-9, F1-F12 등)
 
 /**

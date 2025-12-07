@@ -204,6 +204,14 @@ export class PluginManager {
   }
 
   /**
+   * 모든 플러그인 전체 상태 가져오기
+   */
+  public async getPluginStates(): Promise<Record<string, PluginState>> {
+    const state = await this.storage.getState();
+    return state.plugins;
+  }
+
+  /**
    * 단축키 커스텀 키 업데이트
    */
   public async updateShortcutKeys(

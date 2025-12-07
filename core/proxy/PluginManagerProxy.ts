@@ -109,6 +109,18 @@ class PluginManagerProxy {
     }
 
     /**
+     * 모든 플러그인 상태 가져오기
+     */
+    async getPluginStates(): Promise<Record<string, PluginState>> {
+        if (!this.ensureRuntime()) return {};
+
+        const res = await browser.runtime.sendMessage({
+            type: MessageType.GET_PLUGIN_STATES,
+        });
+        return res.configs as Record<string, PluginState>;
+    }
+
+    /**
      * 플러그인 토글
      */
     async togglePlugin(pluginId: string): Promise<void> {

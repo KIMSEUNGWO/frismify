@@ -113,6 +113,14 @@ export default defineBackground(async () => {
             break;
           }
 
+          case MessageType.GET_PLUGIN_STATES: {
+            const configs = pluginManager.getPluginStates();
+            sendResponse({
+              configs: configs
+            });
+            break;
+          }
+
           case MessageType.GET_PLUGIN_SETTINGS: {
             const {pluginId} = message;
             const settings = await pluginManager.getSettings(pluginId);

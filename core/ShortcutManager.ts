@@ -75,7 +75,7 @@ export class ShortcutManager {
    * Mac: ⌘⇧P (심볼, 공백 없음)
    * Windows: Ctrl + Shift + P (텍스트, + 사이 공백)
    */
-  public format(keys: ShortcutKey[]): string {
+  public format(keys: ShortcutKey[]): string[] {
     if (this.platform.isMac) {
       return this.toMacSymbols(keys);
     } else {
@@ -83,73 +83,33 @@ export class ShortcutManager {
     }
   }
 
-  /**
-   * Chrome Commands API용 커맨드 객체 생성
-   */
-  public toCommand(keys: ShortcutKey[]): { windows: string; mac: string } {
-    return {
-      windows: this.toWindowsCommand(keys),
-      mac: this.toMacCommand(keys),
-    };
-  }
-
   // ===== Private Methods =====
-
   /**
-   * Mac 심볼 변환: ['Cmd', 'Shift', 'P'] -> '⌘⇧P'
+   * Mac 심볼 변환: ['Cmd', 'Shift', 'P'] -> '['⌘', '⇧', 'P']'
    */
-  private toMacSymbols(keys: ShortcutKey[]): string {
-    const symbols: Record<string, string> = {
+  private toMacSymbols(keys: ShortcutKey[]): string[] {
+    const symbols: Record<ShortcutKey, string> = {
       Cmd: '⌘',
       Shift: '⇧',
       Alt: '⌥',
       Ctrl: '⌃',
     };
 
-    return keys.map(key => symbols[key] || key.toUpperCase()).join('');
+    return keys.map(key => symbols[key] || defaultSymbols[key] || key.toUpperCase());
   }
 
   /**
-   * Windows 텍스트 변환: ['Cmd', 'Shift', 'P'] -> 'Ctrl + Shift + P'
+   * Windows 텍스트 변환: ['Cmd', 'Shift', 'P'] -> '['Ctrl', 'Shift', 'P']'
    */
-  private toWindowsText(keys: ShortcutKey[]): string {
+  private toWindowsText(keys: ShortcutKey[]): string[] {
     const texts: Record<string, string> = {
-      Cmd: 'Ctrl',
-      Shift: 'Shift',
-      Alt: 'Alt',
       Ctrl: 'Ctrl',
-    };
-
-    return keys.map(key => texts[key] || key).join(' + ');
-  }
-
-  /**
-   * Mac 커맨드 텍스트: ['Cmd', 'Shift', 'P'] -> 'Command+Shift+P'
-   * (Chrome Commands API용 - 심볼이 아닌 텍스트)
-   */
-  private toMacCommand(keys: ShortcutKey[]): string {
-    const texts: Record<string, string> = {
-      Cmd: 'Command',
+      Cmd: 'Win',
       Shift: 'Shift',
       Alt: 'Alt',
-      Ctrl: 'MacCtrl',
     };
 
-    return keys.map(key => texts[key] || key).join('+');
-  }
-
-  /**
-   * Windows 커맨드 텍스트: ['Cmd', 'Shift', 'P'] -> 'Ctrl+Shift+P'
-   */
-  private toWindowsCommand(keys: ShortcutKey[]): string {
-    const texts: Record<string, string> = {
-      Cmd: 'Ctrl',
-      Shift: 'Shift',
-      Alt: 'Alt',
-      Ctrl: 'Ctrl',
-    };
-
-    return keys.map(key => texts[key] || key).join('+');
+    return keys.map(key => texts[key] || defaultSymbols[key] || key);
   }
 
   /**
@@ -172,4 +132,27 @@ export class ShortcutManager {
 
     return hasModifier && normalKeys.length === 1;
   }
+}
+
+const defaultSymbols: Record<string, string> = {
+  ' ': 'Space',
+  '!': '1',
+  '@': '2',
+  '#': '3',
+  '$': '4',
+  '%': '5',
+  '^': '6',
+  '&': '7',
+  '*': '8',
+  '(': '9',
+  ')': '0',
+  '_': '-',
+  '+': '=',
+  '{': '[',
+  '}': ']',
+  ':': ';',
+  '\"': '\'',
+  '<': ',',
+  '>': '.',
+  '?': '/'
 }
