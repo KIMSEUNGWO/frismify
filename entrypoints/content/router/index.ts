@@ -3,10 +3,6 @@ import {createRouter, createMemoryHistory} from 'vue-router'
 // 모달마다 독립적인 router 인스턴스를 생성하기 위한 routes 정의
 const routes = [
     {
-        path: '/example-plugin',
-        component: () => import('@/plugins/implementations/example/ExampleModalView.vue'),
-    },
-    {
         path: '/copy-breaker',
         component: () => import('@/plugins/implementations/copy-breaker/CopyBreakerModalView.vue'),
     },

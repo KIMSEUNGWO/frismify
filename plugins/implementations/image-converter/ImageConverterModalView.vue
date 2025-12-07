@@ -28,17 +28,38 @@
     <!-- Format Selection -->
     <div v-if="files.length > 0" class="format-section">
       <h4 class="section-title">변환 형식</h4>
-      <div class="format-pills">
+      <div class="format-buttons">
         <button
             v-for="format in formats"
             :key="format.value"
-            class="format-pill"
+            class="format-button"
             :class="{ active: targetFormat === format.value }"
             @click="targetFormat = format.value"
         >
-          <span class="format-icon">{{ format.icon }}</span>
-          <span class="format-label">{{ format.label }}</span>
+          {{ format.label }}
         </button>
+      </div>
+    </div>
+
+    <!-- Quality Control -->
+    <div v-if="files.length > 0 && targetFormat !== 'image/svg+xml'" class="quality-section">
+      <div class="quality-header">
+        <h4 class="section-title">이미지 품질</h4>
+        <span class="quality-value">{{ quality }}%</span>
+      </div>
+      <div class="quality-slider-container">
+        <input
+            type="range"
+            min="1"
+            max="100"
+            v-model.number="quality"
+            class="quality-slider"
+        />
+        <div class="quality-labels">
+          <span class="quality-label">낮음</span>
+          <span class="quality-label">중간</span>
+          <span class="quality-label">높음</span>
+        </div>
       </div>
     </div>
 
@@ -134,7 +155,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 
 // 처리할 파일 목록 및 상태를 관리하는 인터페이스 정의
 interface ProcessedFile {
@@ -145,20 +166,33 @@ interface ProcessedFile {
   originalFile: File;
 }
 
-// 지원 형식
+// 지원 형식 (SVG는 벡터 형식이라 래스터 이미지로 변환 불가능)
 const formats = [
   { label: 'PNG', value: 'image/png', icon: '🖼️' },
   { label: 'JPEG', value: 'image/jpeg', icon: '📷' },
   { label: 'WebP', value: 'image/webp', icon: '🌐' },
-  { label: 'SVG', value: 'image/svg+xml', icon: '✨' },
 ];
 
 const files = ref<ProcessedFile[]>([]);
 const targetFormat = ref<string>('image/png');
+const quality = ref<number>(92);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const isDragging = ref(false);
 const isConverting = ref(false);
 const isZipping = ref(false);
+
+// Load quality setting from plugin settings
+onMounted(async () => {
+  try {
+    const { pluginManagerProxy } = await import('@/core');
+    const settings = await pluginManagerProxy.getPluginSettings('image-converter');
+    if (settings?.quality !== undefined) {
+      quality.value = settings.quality;
+    }
+  } catch (error) {
+    console.error('Failed to load settings:', error);
+  }
+});
 
 const hasCompletedFiles = computed(() => files.value.some(f => f.status === '완료'));
 const completedFilesCount = computed(() => files.value.filter(f => f.status === '완료').length);
@@ -174,6 +208,11 @@ const clearFiles = () => {
     }
   });
   files.value = [];
+
+  // input:file 초기화 (같은 파일을 다시 선택할 수 있도록)
+  if (fileInputRef.value) {
+    fileInputRef.value.value = '';
+  }
 };
 
 // 일괄 변환 시작 (3개씩 동시 처리)
@@ -247,6 +286,12 @@ const convertFile = (file: ProcessedFile, format: string): Promise<void> => {
 
         ctx.drawImage(img, 0, 0);
 
+        // PNG는 무손실 압축이라 품질 파라미터가 무시됨
+        // JPEG와 WebP만 품질 설정 적용
+        const qualityValue = (format === 'image/jpeg' || format === 'image/webp')
+          ? quality.value / 100
+          : undefined;
+
         canvas.toBlob((blob) => {
           if (blob) {
             file.downloadUrl = URL.createObjectURL(blob);
@@ -256,7 +301,7 @@ const convertFile = (file: ProcessedFile, format: string): Promise<void> => {
           } else {
             reject(new Error('Canvas toBlob failed'));
           }
-        }, format, 0.92); // 품질 92%
+        }, format, qualityValue);
       };
       img.onerror = () => reject(new Error('Image load failed'));
       img.src = e.target?.result as string;
@@ -435,7 +480,8 @@ const downloadAllAsZip = async () => {
 /* Format Selection */
 .format-section {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
 }
 
@@ -448,49 +494,124 @@ const downloadAllAsZip = async () => {
   letter-spacing: 0.5px;
 }
 
-.format-pills {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+.format-buttons {
+  display: inline-flex;
+  width: fit-content;
+  background: var(--card-bg-color);
+  border-radius: 8px;
+  padding: 4px;
+  gap: 4px;
 }
 
-.format-pill {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 12px 8px;
-  background: var(--card-bg-color);
-  border: 2px solid transparent;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
+.format-button {
+  padding: 6px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
   font-size: 13px;
   font-weight: 600;
   color: var(--font-color-2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
-.format-pill:hover {
-  background: var(--card-bg-hover);
-  border-color: var(--purple);
-  transform: translateY(-1px);
+.format-button:hover {
+  color: var(--font-color-1);
+  background: rgba(139, 92, 246, 0.1);
 }
 
-.format-pill.active {
+.format-button.active {
   background: var(--purple);
-  border-color: var(--purple);
   color: #fff;
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+  box-shadow: 0 2px 4px rgba(139, 92, 246, 0.3);
 }
 
-.format-icon {
-  font-size: 24px;
-  line-height: 1;
+/* Quality Section */
+.quality-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.format-label {
-  font-size: 12px;
-  font-weight: 600;
+.quality-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.quality-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--purple);
+  padding: 4px 12px;
+  background: rgba(139, 92, 246, 0.1);
+  border-radius: 6px;
+}
+
+.quality-slider-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quality-slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right,
+    rgba(139, 92, 246, 0.2) 0%,
+    rgba(139, 92, 246, 0.5) 50%,
+    var(--purple) 100%);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.quality-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--purple);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
+  transition: all 0.2s ease;
+}
+
+.quality-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.6);
+}
+
+.quality-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--purple);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
+  transition: all 0.2s ease;
+}
+
+.quality-slider::-moz-range-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.6);
+}
+
+.quality-labels {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 4px;
+}
+
+.quality-label {
+  font-size: 11px;
+  color: var(--font-color-2);
+  font-weight: 500;
 }
 
 /* File List */

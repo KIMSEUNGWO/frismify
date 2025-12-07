@@ -9,7 +9,8 @@ export const imageConverter: ModalPlugin = {
     version: '1.0.0',
     isModal: true,
     icon: (container) => {
-        container.style.background = 'linear-gradient(135deg, #FB923C, #FDE047)';
+        container.style.background = 'linear-gradient(135deg, #FDE047, #FB923C)';
+        container.className += ' plugin-icon';
         container.innerHTML = `
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <rect x="3" y="3" width="18" height="18" rx="2" stroke="white" stroke-width="2"/>
@@ -18,5 +19,13 @@ export const imageConverter: ModalPlugin = {
                 <path d="M16 7L19 10M19 10L16 13M19 10H14" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
             </svg>
         `;
+    },
+    settings: {
+        quality: {
+            type: 'number',
+            label: '이미지 품질',
+            description: '변환된 이미지의 품질 (1-100)',
+            defaultValue: 92,
+        }
     }
 }

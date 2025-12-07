@@ -10,19 +10,17 @@
 
 import { PluginManager } from '@/core';
 import type { Plugin } from '@/types';
-import { examplePlugin } from '@/plugins/implementations/example';
 import { copyProtectionBreakerPlugin } from '@/plugins/implementations/copy-breaker';
 import { colorPicker } from "@/plugins/implementations/color-picker";
 import { assetSpyPlugin } from "@/plugins/implementations/asset-spy";
 import { rulerPlugin } from '@/plugins/implementations/ruler';
-import {imageConverter} from "@/plugins/implementations/image-converter";
+import { imageConverter } from "@/plugins/implementations/image-converter";
 
 /**
  * 모든 플러그인 정의 배열
  * Popup/Options에서 icon 렌더링을 위해 export
  */
 export const allPlugins: Plugin[] = [
-  examplePlugin,
   copyProtectionBreakerPlugin,
   colorPicker,
   assetSpyPlugin,

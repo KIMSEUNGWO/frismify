@@ -19,6 +19,8 @@
                 v-model="contrastColor1"
                 class="color-text-input"
                 placeholder="#000000"
+                @focus="handleInputFocus"
+                @blur="handleInputBlur"
             />
           </div>
         </div>
@@ -35,6 +37,8 @@
                 v-model="contrastColor2"
                 class="color-text-input"
                 placeholder="#FFFFFF"
+                @focus="handleInputFocus"
+                @blur="handleInputBlur"
             />
           </div>
         </div>
@@ -95,6 +99,8 @@
               v-model="selectedColorForVariations"
               class="color-text-input"
               placeholder="#667eea"
+              @focus="handleInputFocus"
+              @blur="handleInputBlur"
           />
         </div>
       </div>
@@ -174,6 +180,31 @@ const contrastResult = computed(() => {
 const shades = computed(() => generateShades(selectedColorForVariations.value, 5));
 const tints = computed(() => generateTints(selectedColorForVariations.value, 5));
 const tones = computed(() => generateTones(selectedColorForVariations.value, 5));
+
+// Prevent other event listeners when input is focused
+const handleInputKeyEvent = (event: KeyboardEvent) => {
+  // Stop all keyboard events from propagating to page
+  event.stopPropagation();
+  event.stopImmediatePropagation();
+};
+
+const handleInputFocus = (event: FocusEvent) => {
+  const input = event.target as HTMLInputElement;
+
+  // Add event listeners to block all keyboard events
+  input.addEventListener('keydown', handleInputKeyEvent, true);
+  input.addEventListener('keyup', handleInputKeyEvent, true);
+  input.addEventListener('keypress', handleInputKeyEvent, true);
+};
+
+const handleInputBlur = (event: FocusEvent) => {
+  const input = event.target as HTMLInputElement;
+
+  // Remove event listeners when unfocused
+  input.removeEventListener('keydown', handleInputKeyEvent, true);
+  input.removeEventListener('keyup', handleInputKeyEvent, true);
+  input.removeEventListener('keypress', handleInputKeyEvent, true);
+};
 
 </script>
 
