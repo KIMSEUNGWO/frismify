@@ -2,7 +2,7 @@ import { ref } from 'vue';
 import {
   findClosestTailwindColor
 } from './colorUtils';
-import {colorConverter} from "@/plugins/implementations/color-picker/color-types";
+import {colorConverter, HSL, HSV, RGB} from "@/plugins/implementations/color-picker/color-types";
 
 export type ColorFormat = 'hex' | 'rgb' | 'hsl' | 'hsv' | 'tailwind';
 

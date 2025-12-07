@@ -1,13 +1,8 @@
 <script setup lang="ts">
   import {onMounted, onUnmounted, ref} from 'vue';
-import { useColorPicker } from './useColorPicker';
-import { usePageColorAnalyzer } from './usePageColorAnalyzer';
 import ColorPickerTab from "@/plugins/implementations/color-picker/tabs/ColorPickerTab.vue";
 import ColorAnalysisTab from "@/plugins/implementations/color-picker/tabs/ColorAnalysisTab.vue";
 import ColorToolsTab from "@/plugins/implementations/color-picker/tabs/ColorToolsTab.vue";
-
-const { selectedFormat, start, copyToClipboard, getColorString, saveColor } = useColorPicker();
-const { isAnalyzing, analysis, analyze } = usePageColorAnalyzer();
 
 const activeTab = ref<'picker' | 'analysis' | 'tools'>('picker');
 const colorPickerRef = ref<typeof ColorPickerTab | null>(null);

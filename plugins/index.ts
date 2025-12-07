@@ -15,6 +15,7 @@ import { colorPicker } from "@/plugins/implementations/color-picker";
 import { assetSpyPlugin } from "@/plugins/implementations/asset-spy";
 import { rulerPlugin } from '@/plugins/implementations/ruler';
 import { imageConverter } from "@/plugins/implementations/image-converter";
+import {accessibilityPlugin} from "@/plugins/implementations/accessibility";
 
 /**
  * 모든 플러그인 정의 배열
@@ -22,6 +23,7 @@ import { imageConverter } from "@/plugins/implementations/image-converter";
  */
 export const allPlugins: Plugin[] = [
   copyProtectionBreakerPlugin,
+  accessibilityPlugin,
   colorPicker,
   assetSpyPlugin,
   imageConverter,
