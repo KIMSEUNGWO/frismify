@@ -65,7 +65,8 @@ export class ShortcutManager {
       return false;
     }
 
-    const keyMatches = event.key.toUpperCase() === normalKey.toUpperCase();
+    // event.code 사용 (Shift 등 수정자 키 영향 받지 않음)
+    const keyMatches = this.keyToCode(normalKey) === event.code;
 
     return cmdMatches && shiftMatches && altMatches && ctrlMatches && keyMatches;
   }
@@ -110,6 +111,52 @@ export class ShortcutManager {
     };
 
     return keys.map(key => texts[key] || defaultSymbols[key] || key);
+  }
+
+  /**
+   * 키 값을 event.code 형식으로 변환
+   * 예: '1' -> 'Digit1', 'A' -> 'KeyA', ' ' -> 'Space'
+   */
+  private keyToCode(key: string): string {
+    const upperKey = key.toUpperCase();
+
+    // 숫자 (0-9)
+    if (/^[0-9]$/.test(key)) {
+      return `Digit${key}`;
+    }
+
+    // 알파벳 (A-Z)
+    if (/^[A-Z]$/i.test(key)) {
+      return `Key${upperKey}`;
+    }
+
+    // 특수 키 매핑
+    const specialKeys: Record<string, string> = {
+      ' ': 'Space',
+      'Space': 'Space',
+      'Enter': 'Enter',
+      'Tab': 'Tab',
+      'Escape': 'Escape',
+      'Backspace': 'Backspace',
+      'Delete': 'Delete',
+      'ArrowUp': 'ArrowUp',
+      'ArrowDown': 'ArrowDown',
+      'ArrowLeft': 'ArrowLeft',
+      'ArrowRight': 'ArrowRight',
+      '-': 'Minus',
+      '=': 'Equal',
+      '[': 'BracketLeft',
+      ']': 'BracketRight',
+      '\\': 'Backslash',
+      ';': 'Semicolon',
+      '\'': 'Quote',
+      ',': 'Comma',
+      '.': 'Period',
+      '/': 'Slash',
+      '`': 'Backquote',
+    };
+
+    return specialKeys[key] || specialKeys[upperKey] || upperKey;
   }
 
   /**

@@ -2,6 +2,8 @@
 import { ref } from 'vue';
 import ColorBlindnessTab from './tabs/ColorBlindnessTab.vue';
 import NetworkThrottleTab from './tabs/NetworkThrottleTab.vue';
+import ScreenReaderTab from './tabs/ScreenReaderTab.vue';
+import KeyboardNavTab from './tabs/KeyboardNavTab.vue';
 
 const activeTab = ref<'colorblindness' | 'network' | 'screen-reader' | 'keyboard'>('colorblindness');
 
@@ -40,7 +42,6 @@ const switchTab = (tab: 'colorblindness' | 'network' | 'screen-reader' | 'keyboa
         class="tab-button"
         :class="{ active: activeTab === 'screen-reader' }"
         @click="switchTab('screen-reader')"
-        disabled
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" stroke-width="2"/>
@@ -52,7 +53,6 @@ const switchTab = (tab: 'colorblindness' | 'network' | 'screen-reader' | 'keyboa
         class="tab-button"
         :class="{ active: activeTab === 'keyboard' }"
         @click="switchTab('keyboard')"
-        disabled
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" stroke-width="2"/>
@@ -67,17 +67,9 @@ const switchTab = (tab: 'colorblindness' | 'network' | 'screen-reader' | 'keyboa
 
     <NetworkThrottleTab v-else-if="activeTab === 'network'" class="tab-content" />
 
-    <!-- Placeholder for future tabs -->
-    <div v-else class="tab-content coming-soon">
-      <div class="coming-soon-content">
-        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-          <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-        <h3>Coming Soon</h3>
-        <p>This feature is under development</p>
-      </div>
-    </div>
+    <ScreenReaderTab v-else-if="activeTab === 'screen-reader'" class="tab-content" />
+
+    <KeyboardNavTab v-else-if="activeTab === 'keyboard'" class="tab-content" />
   </div>
 </template>
 
