@@ -19,7 +19,7 @@ interface SegmentData {
 // 감지된 비디오 파일을 탭별로 저장하는 Map (TabId -> VideoItem[])
 interface VideoItem {
   url: string;
-  type: 'mp4' | 'm3u8';
+  type: 'hls' | 'mp4' | 'dash' | 'unknown';
 }
 
 const detectedM3u8Map = new Map<number, VideoItem[]>();
@@ -64,7 +64,7 @@ export const hlsDownloader: BackgroundMonitorModalPlugin = {
       const existingList = detectedM3u8Map.get(tabId) || [];
 
       // mp4 파일 감지
-      if (url.endsWith('.mp4')) {
+      if (url.includes('.mp4')) {
         console.log('[HLS Downloader] Detected mp4:', url);
 
         // 중복 체크
@@ -84,8 +84,8 @@ export const hlsDownloader: BackgroundMonitorModalPlugin = {
         detectedM3u8Map.get(tabId)!.push({ url, type: 'mp4' });
       }
 
-      // m3u8 파일 감지
-      if (url.endsWith('.m3u8')) {
+      // m3u8 파일 감지 (HLS)
+      if (url.includes('.m3u8')) {
         console.log('[HLS Downloader] Detected m3u8:', url);
 
         // 중복 체크
@@ -106,7 +106,24 @@ export const hlsDownloader: BackgroundMonitorModalPlugin = {
         if (!detectedM3u8Map.has(tabId)) {
           detectedM3u8Map.set(tabId, []);
         }
-        detectedM3u8Map.get(tabId)!.push({ url, type: 'm3u8' });
+        detectedM3u8Map.get(tabId)!.push({ url, type: 'hls' });
+      }
+
+      // mpd 파일 감지 (DASH)
+      if (url.includes('.mpd')) {
+        console.log('[HLS Downloader] Detected mpd (DASH):', url);
+
+        // 중복 체크
+        const alreadyExists = existingList.some(item => item.url === url);
+        if (alreadyExists) {
+          console.log('[HLS Downloader] mpd already cached:', url);
+          return undefined;
+        }
+
+        if (!detectedM3u8Map.has(tabId)) {
+          detectedM3u8Map.set(tabId, []);
+        }
+        detectedM3u8Map.get(tabId)!.push({ url, type: 'dash' });
       }
 
       return undefined;
