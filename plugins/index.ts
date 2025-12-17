@@ -16,6 +16,7 @@ import { assetSpyPlugin } from "@/plugins/implementations/asset-spy";
 import { rulerPlugin } from '@/plugins/implementations/ruler';
 import { imageConverter } from "@/plugins/implementations/image-converter";
 import {accessibilityPlugin} from "@/plugins/implementations/accessibility";
+import { hlsDownloader } from "@/plugins/implementations/hls-downloader";
 
 /**
  * 모든 플러그인 정의 배열
@@ -27,7 +28,8 @@ export const allPlugins: Plugin[] = [
   colorPicker,
   assetSpyPlugin,
   imageConverter,
-  rulerPlugin
+  rulerPlugin,
+  hlsDownloader
 ];
 
 /**

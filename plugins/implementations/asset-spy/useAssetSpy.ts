@@ -2,7 +2,6 @@ import {ref} from 'vue';
 import {getSetting} from '@/utils/settings';
 import {MessageType} from '@/core/InstanceManager';
 import {Asset, AssetType} from "@/plugins/implementations/asset-spy/asset-types";
-import {SVGElement} from "linkedom/types/svg/element";
 
 // ============================================================================
 // 상수

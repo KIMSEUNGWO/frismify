@@ -128,6 +128,31 @@ export default defineContentScript({
       }
     };
 
+    window.addEventListener('message', (event) => {
+      if (event.source !== window) return;
+      switch (event.data.type) {
+
+        case MessageType.GET_SEGMENT_URL_LIST: {
+          browser.runtime.sendMessage({
+            type: MessageType.GET_SEGMENT_URL_LIST_RESULT,
+            data: event.data.data,
+            requestId: event.data.requestId,
+          });
+          break;
+        }
+
+        case 'DOWNLOAD_SEGMENT': {
+          browser.runtime.sendMessage({
+            type: MessageType.DOWNLOAD_SEGMENT_RESULT,
+            data: event.data.data,
+            error: event.data.error,
+            requestId: event.data.requestId,
+          });
+          break;
+        }
+      }
+    });
+
     // 전역 keydown 이벤트 리스너 등록
     document.addEventListener('keydown', handleShortcut, true);
 

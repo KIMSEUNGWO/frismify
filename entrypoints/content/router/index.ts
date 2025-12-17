@@ -22,6 +22,10 @@ const routes = [
         path: '/accessibility',
         component: () => import('@/plugins/implementations/accessibility/AccessibilityModalView.vue'),
     },
+    {
+        path: '/hls-downloader',
+        component: () => import('@/plugins/implementations/hls-downloader/HLSDownloaderModalView.vue'),
+    },
 ];
 
 // 각 모달마다 새로운 router 인스턴스를 생성하는 factory 함수

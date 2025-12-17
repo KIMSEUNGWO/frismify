@@ -62,10 +62,20 @@ export interface ModalPlugin extends Plugin {
   onClose?: (ctx: ContentScriptContext) => void | Promise<void>;
 }
 
+export interface BackgroundMonitorPlugin extends Plugin {
+  // Background에서 활성화 시 호출 (webRequest 리스너 등록 등)
+  onBackgroundActivate: () => void | Promise<void>;
+  // Background에서 비활성화 시 호출 (리스너 정리 등)
+  onBackgroundCleanup: () => void | Promise<void>;
+}
+
 export interface PersistentExecutablePlugin extends PersistentPlugin, ExecutablePlugin {
 }
 
 export interface PersistentModalPlugin extends PersistentPlugin, ModalPlugin {
+}
+
+export interface BackgroundMonitorModalPlugin extends BackgroundMonitorPlugin, ModalPlugin {
 }
 
 // Type guard 함수들
@@ -79,6 +89,10 @@ export function isExecutablePlugin(plugin: Plugin): plugin is ExecutablePlugin {
 
 export function isModalPlugin(plugin: Plugin): plugin is ModalPlugin {
   return 'isModal' in plugin && (plugin as any).isModal;
+}
+
+export function isBackgroundMonitorPlugin(plugin: Plugin): plugin is BackgroundMonitorPlugin {
+  return 'onBackgroundActivate' in plugin && 'onBackgroundCleanup' in plugin;
 }
 
 

@@ -10,7 +10,9 @@ export default defineConfig({
       'scripting',      // 동적 스크립트 주입
       'tabs',
       'downloads',      // 이미지 다운로드 (CORS 우회)
-      'debugger'
+      'debugger',
+      'webRequest',      // HLS Downloader: m3u8 URL 감지
+      'scripting'
     ],
     host_permissions: ['<all_urls>'], // 모든 사이트에서 작동
   },

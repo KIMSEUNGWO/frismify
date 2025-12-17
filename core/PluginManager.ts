@@ -16,6 +16,7 @@
  */
 
 import type { Plugin, PluginState, AppState } from '@/types';
+import { isBackgroundMonitorPlugin } from '@/types';
 import { StorageManager } from './StorageManager';
 
 export class PluginManager {
@@ -129,34 +130,75 @@ export class PluginManager {
       throw new Error(`Plugin ${pluginId} not found in state`);
     }
 
+    const wasEnabled = pluginState.enabled;
     pluginState.enabled = !pluginState.enabled;
     await this.storage.setState(state);
 
     console.log(`[PluginManager] Plugin ${pluginId}: ${pluginState.enabled ? 'enabled' : 'disabled'}`);
+
+    // BackgroundMonitorPlugin 라이프사이클 처리
+    const plugin = this.plugins.get(pluginId);
+    if (plugin && isBackgroundMonitorPlugin(plugin)) {
+      if (pluginState.enabled && !wasEnabled) {
+        // 활성화: onBackgroundActivate 호출
+        await plugin.onBackgroundActivate();
+        console.log(`[PluginManager] BackgroundMonitorPlugin ${pluginId} activated`);
+      } else if (!pluginState.enabled && wasEnabled) {
+        // 비활성화: onBackgroundCleanup 호출
+        await plugin.onBackgroundCleanup();
+        console.log(`[PluginManager] BackgroundMonitorPlugin ${pluginId} cleaned up`);
+      }
+    }
   }
 
   /**
    * 플러그인 활성화
    */
   public async enablePlugin(pluginId: string): Promise<void> {
+    // 이전 상태 확인
+    const prevState = await this.storage.getState();
+    const wasEnabled = prevState.plugins[pluginId]?.enabled || false;
+
     await this.storage.updateState(state => {
       if (state.plugins[pluginId]) {
         state.plugins[pluginId].enabled = true;
       }
       return state;
     });
+
+    // BackgroundMonitorPlugin 라이프사이클 처리
+    if (!wasEnabled) {
+      const plugin = this.plugins.get(pluginId);
+      if (plugin && isBackgroundMonitorPlugin(plugin)) {
+        await plugin.onBackgroundActivate();
+        console.log(`[PluginManager] BackgroundMonitorPlugin ${pluginId} activated`);
+      }
+    }
   }
 
   /**
    * 플러그인 비활성화
    */
   public async disablePlugin(pluginId: string): Promise<void> {
+    // 이전 상태 확인
+    const prevState = await this.storage.getState();
+    const wasEnabled = prevState.plugins[pluginId]?.enabled || false;
+
     await this.storage.updateState(state => {
       if (state.plugins[pluginId]) {
         state.plugins[pluginId].enabled = false;
       }
       return state;
     });
+
+    // BackgroundMonitorPlugin 라이프사이클 처리
+    if (wasEnabled) {
+      const plugin = this.plugins.get(pluginId);
+      if (plugin && isBackgroundMonitorPlugin(plugin)) {
+        await plugin.onBackgroundCleanup();
+        console.log(`[PluginManager] BackgroundMonitorPlugin ${pluginId} cleaned up`);
+      }
+    }
   }
 
   /**
