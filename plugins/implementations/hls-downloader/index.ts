@@ -16,14 +16,19 @@ interface SegmentData {
   index: number;
 }
 
-// M3U8 데이터를 탭별로 저장하는 Map (TabId -> M3U8Data[])
-const detectedM3u8Map = new Map<number, string[]>();
+// 감지된 비디오 파일을 탭별로 저장하는 Map (TabId -> VideoItem[])
+interface VideoItem {
+  url: string;
+  type: 'mp4' | 'm3u8';
+}
+
+const detectedM3u8Map = new Map<number, VideoItem[]>();
 
 // Record 모드 활성화 여부 (m3u8Url -> boolean)
 const recordModeMap = new Map<string, boolean>();
 
 // webRequest 리스너 참조 (cleanup을 위해 저장)
-let webRequestListener: ((details: any) => void) | null = null;
+let webRequestListener: ((details: any) => undefined) | null = null;
 let tabRemovedListener: ((tabId: number) => void) | null = null;
 
 export const hlsDownloader: BackgroundMonitorModalPlugin = {
@@ -48,32 +53,67 @@ export const hlsDownloader: BackgroundMonitorModalPlugin = {
   onBackgroundActivate: async () => {
     console.log('[HLS Downloader] Background monitoring activated');
 
-    // webRequest 리스너 등록
-    webRequestListener = async (details) => {
+    // webRequest 리스너 등록 (onBeforeRequest로 변경하여 캐시에서도 감지)
+    webRequestListener = (details) => {
       const url = details.url;
       const tabId = details.tabId;
 
-      // m3u8 파일 감지
-      if (url.includes('.m3u8')) {
-        console.log('[HLS Downloader] Detected m3u8:', url);
+      // tabId가 -1인 경우 (service worker 등) 무시
+      if (tabId === -1) return undefined;
 
-        const existingList = detectedM3u8Map.get(tabId) || [];
+      const existingList = detectedM3u8Map.get(tabId) || [];
+
+      // mp4 파일 감지
+      if (url.endsWith('.mp4')) {
+        console.log('[HLS Downloader] Detected mp4:', url);
 
         // 중복 체크
-        const alreadyExists = existingList.some(item => item === url);
+        const alreadyExists = existingList.some(item => item.url === url);
         if (alreadyExists) {
-          console.log('[HLS Downloader] m3u8 already cached:', url);
-          return;
+          return undefined;
+        }
+
+        // URL이 너무 짧으면 무시 (광고, 썸네일 등)
+        if (url.length < 50) {
+          return undefined;
         }
 
         if (!detectedM3u8Map.has(tabId)) {
           detectedM3u8Map.set(tabId, []);
         }
-        detectedM3u8Map.get(tabId)!.push(url);
+        detectedM3u8Map.get(tabId)!.push({ url, type: 'mp4' });
       }
+
+      // m3u8 파일 감지
+      if (url.endsWith('.m3u8')) {
+        console.log('[HLS Downloader] Detected m3u8:', url);
+
+        // 중복 체크
+        const alreadyExists = existingList.some(item => item.url === url);
+        if (alreadyExists) {
+          console.log('[HLS Downloader] m3u8 already cached:', url);
+          return undefined;
+        }
+
+        // master.m3u8 필터링 (URL 기반)
+        // playlist.m3u8는 품질별 실제 segment 리스트이므로 포함해야 함
+        const urlLower = url.toLowerCase();
+        if (urlLower.includes('master.m3u8')) {
+          console.log('[HLS Downloader] Skipping master playlist:', url);
+          return undefined;
+        }
+
+        if (!detectedM3u8Map.has(tabId)) {
+          detectedM3u8Map.set(tabId, []);
+        }
+        detectedM3u8Map.get(tabId)!.push({ url, type: 'm3u8' });
+      }
+
+      return undefined;
     };
 
-    browser.webRequest.onCompleted.addListener(
+    // onBeforeRequest로 변경 (캐시에서 로드되는 경우에도 감지)
+    browser.webRequest.onBeforeRequest.addListener(
       webRequestListener,
       { urls: ['<all_urls>'] }
     );
@@ -92,7 +132,7 @@ export const hlsDownloader: BackgroundMonitorModalPlugin = {
 
     // webRequest 리스너 제거
     if (webRequestListener) {
-      browser.webRequest.onCompleted.removeListener(webRequestListener);
+      browser.webRequest.onBeforeRequest.removeListener(webRequestListener);
       webRequestListener = null;
     }
 

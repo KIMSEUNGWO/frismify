@@ -1,10 +1,5 @@
 <template>
   <div class="hls-downloader-modal">
-    <div class="header-section">
-      <h3 class="title">HLS Downloader</h3>
-      <p class="subtitle">Detected HLS streams will appear below</p>
-    </div>
-
     <!-- M3U8 List -->
     <div v-if="m3u8List.length === 0" class="empty-state">
       <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -19,7 +14,7 @@
     <div v-else class="stream-list">
       <div v-for="(item, index) in m3u8List" :key="index" class="stream-item">
         <div class="stream-info">
-          <div class="stream-icon">
+          <div class="stream-icon" :class="{ 'mp4-icon': item.type === 'mp4' }">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2"/>
               <polyline points="14 2 14 8 20 8" stroke="currentColor" stroke-width="2"/>
@@ -27,8 +22,8 @@
             </svg>
           </div>
           <div class="stream-details">
-            <p class="stream-url" :title="item">{{ truncateUrl(item) }}</p>
-            <p class="stream-label">M3U8 Stream</p>
+            <p class="stream-url" :title="item.url">{{ truncateUrl(item.url) }}</p>
+            <p class="stream-label">{{ item.type === 'mp4' ? 'MP4 File' : 'M3U8 Stream' }}</p>
           </div>
         </div>
         <button
@@ -43,6 +38,26 @@
           </svg>
           <div v-else class="spinner"></div>
           {{ isDownloading ? 'Downloading...' : 'Download' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Concurrency Control -->
+    <div v-if="m3u8List.length > 0 && m3u8List.some(item => item.type === 'm3u8')" class="concurrency-section">
+      <div class="concurrency-header">
+        <span class="concurrency-label">Download Threads</span>
+        <span class="concurrency-value">{{ concurrency }}</span>
+      </div>
+      <div class="concurrency-buttons">
+        <button
+          v-for="num in [1, 2, 3, 4]"
+          :key="num"
+          class="concurrency-button"
+          :class="{ active: concurrency === num }"
+          @click="concurrency = num"
+          :disabled="isDownloading"
+        >
+          {{ num }}
         </button>
       </div>
     </div>
@@ -65,7 +80,6 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { MessageType } from '@/core/InstanceManager';
 import {Browser} from "@wxt-dev/browser";
-import Port = Browser.runtime.Port;
 
 interface DownloadProgress {
   status: string;
@@ -73,12 +87,18 @@ interface DownloadProgress {
   details: string;
 }
 
-const m3u8List = ref<string[]>([]);
+interface VideoItem {
+  url: string;
+  type: 'mp4' | 'm3u8';
+}
+
+const m3u8List = ref<VideoItem[]>([]);
 const isDownloading = ref(false);
 const downloadProgress = ref<DownloadProgress | null>(null);
+const concurrency = ref<number>(2); // 동시 다운로드 스레드 수 (default: 2)
 
 // Port 기반 통신을 위한 Port 인스턴스
-let segmentFetchPort: Port | null = null;
+let segmentFetchPort: Browser.runtime.Port | null = null;
 const pendingSegmentRequests = new Map<string, {
   resolve: (data: string[]) => void;
   reject: (error: Error) => void;
@@ -190,8 +210,8 @@ const getSegmentUrlList = async (m3u8Url: string): Promise<string[]> => {
 
 const truncateUrl = (url: string): string => {
   if (url.length <= 60) return url;
-  const start = url.substring(0, 30);
-  const end = url.substring(url.length - 27);
+  const start = url.substring(0, 20);
+  const end = url.substring(url.length - 37);
   return `${start}...${end}`;
 };
 
@@ -300,20 +320,56 @@ const downloadSegmentsParallel = async (
   return results;
 };
 
-const downloadStream = async (m3u8Url: string) => {
+const downloadStream = async (item: VideoItem) => {
   if (isDownloading.value) return;
 
   isDownloading.value = true;
-  downloadProgress.value = {
-    status: 'Parsing playlist...',
-    percent: 10,
-    details: 'Extracting segment URLs (using cached m3u8)',
-  };
 
   try {
+    // MP4 파일인 경우 직접 다운로드
+    if (item.type === 'mp4') {
+      downloadProgress.value = {
+        status: 'Downloading MP4...',
+        percent: 0,
+        details: 'Starting download',
+      };
+
+      // browser.downloads API 사용하여 직접 다운로드
+      await browser.runtime.sendMessage({
+        type: MessageType.DOWNLOAD_IMAGE,
+        url: item.url,
+        filename: `video-${Date.now()}.mp4`,
+      });
+
+      downloadProgress.value = {
+        status: 'Complete!',
+        percent: 100,
+        details: 'MP4 downloaded successfully',
+      };
+
+      setTimeout(() => {
+        downloadProgress.value = null;
+        isDownloading.value = false;
+      }, 2000);
+      return;
+    }
+
+    // M3U8 스트리밍인 경우 segment 다운로드
+    downloadProgress.value = {
+      status: 'Fetching segment list...',
+      percent: 0,
+      details: 'Parsing m3u8 playlist',
+    };
+
     // 1. Segment URL 리스트 가져오기
-    const segmentUrlList = await getSegmentUrlList(m3u8Url);
+    const segmentUrlList = await getSegmentUrlList(item.url);
     console.log('Segment URL List:', segmentUrlList);
+
+    downloadProgress.value = {
+      status: 'Validating segments...',
+      percent: 10,
+      details: `Found ${segmentUrlList.length} segments`,
+    };
 
     // 2. Segment 검증
     const validation = validateSegments(segmentUrlList);
@@ -321,18 +377,12 @@ const downloadStream = async (m3u8Url: string) => {
       throw new Error(validation.error);
     }
 
-    downloadProgress.value = {
-      status: 'Validating segments...',
-      percent: 15,
-      details: `Found ${segmentUrlList.length} valid segments`,
-    };
-
-    // 3. Segment 다운로드 (병렬, concurrency=2)
+    // 3. Segment 다운로드 (병렬, 사용자가 설정한 concurrency 사용)
     const segmentBuffers = await downloadSegmentsParallel(
       segmentUrlList,
-      4, // 동시 다운로드 수 (1-4 조절 가능)
+      concurrency.value,
       (current, total) => {
-        const percent = 15 + Math.floor((current / total) * 70);
+        const percent = 10 + Math.floor((current / total) * 80);
         downloadProgress.value = {
           status: 'Downloading segments...',
           percent,
@@ -343,7 +393,7 @@ const downloadStream = async (m3u8Url: string) => {
 
     downloadProgress.value = {
       status: 'Merging segments...',
-      percent: 90,
+      percent: 95,
       details: 'Creating video file',
     };
 
@@ -392,130 +442,6 @@ const downloadStream = async (m3u8Url: string) => {
       isDownloading.value = false;
     }, 5000);
   }
-  // try {
-  //   // 캐싱된 m3u8 content 사용 (다시 다운로드하지 않음!)
-  //   const m3u8Text = m3u8Data.content;
-  //   const m3u8Url = m3u8Data.url;
-  //
-  //   // Parse m3u8 using m3u8-parser
-  //   const m3u8Parser = await import('m3u8-parser');
-  //   const parser = new m3u8Parser.Parser();
-  //   parser.push(m3u8Text);
-  //   parser.end();
-  //
-  //   const manifest = parser.manifest;
-  //   const segments = manifest.segments || [];
-  //
-  //   if (segments.length === 0) {
-  //     throw new Error('No segments found in playlist');
-  //   }
-  //
-  //   // Resolve segment URLs (relative to m3u8 URL)
-  //   const baseUrl = m3u8Url.substring(0, m3u8Url.lastIndexOf('/') + 1);
-  //   const segmentUrls = segments.map((seg: any) => {
-  //     const uri = seg.uri;
-  //     return uri.startsWith('http') ? uri : baseUrl + uri;
-  //   });
-  //
-  //   downloadProgress.value = {
-  //     status: 'Downloading segments...',
-  //     percent: 20,
-  //     details: `0 / ${segmentUrls.length} segments`,
-  //   };
-  //
-  //   // Download segments
-  //   const segmentBlobs: ArrayBuffer[] = [];
-  //   for (let i = 0; i < segmentUrls.length; i++) {
-  //     const response = await fetch(segmentUrls[i]);
-  //     const arrayBuffer = await response.arrayBuffer();
-  //     segmentBlobs.push(arrayBuffer);
-  //
-  //     const percent = 20 + Math.floor((i + 1) / segmentUrls.length * 60);
-  //     downloadProgress.value = {
-  //       status: 'Downloading segments...',
-  //       percent,
-  //       details: `${i + 1} / ${segmentUrls.length} segments`,
-  //     };
-  //   }
-  //
-  //   downloadProgress.value = {
-  //     status: 'Merging segments...',
-  //     percent: 85,
-  //     details: 'Creating MP4 file',
-  //   };
-  //
-  //   // Merge segments using mux.js
-  //   const { default: muxjs } = await import('mux.js');
-  //   const transmuxer = new muxjs.mp4.Transmuxer();
-  //
-  //   const mp4Segments: Uint8Array[] = [];
-  //
-  //   transmuxer.on('data', (segment: any) => {
-  //     if (segment.initSegment) {
-  //       mp4Segments.push(new Uint8Array(segment.initSegment.data));
-  //     }
-  //     if (segment.data) {
-  //       mp4Segments.push(new Uint8Array(segment.data));
-  //     }
-  //   });
-  //
-  //   // Feed all segments to transmuxer
-  //   for (const segmentBuffer of segmentBlobs) {
-  //     transmuxer.push(new Uint8Array(segmentBuffer));
-  //   }
-  //   transmuxer.flush();
-  //
-  //   downloadProgress.value = {
-  //     status: 'Finalizing...',
-  //     percent: 95,
-  //     details: 'Creating blob',
-  //   };
-  //
-  //   // Combine all MP4 segments
-  //   const totalLength = mp4Segments.reduce((sum, arr) => sum + arr.length, 0);
-  //   const mergedArray = new Uint8Array(totalLength);
-  //   let offset = 0;
-  //   for (const segment of mp4Segments) {
-  //     mergedArray.set(segment, offset);
-  //     offset += segment.length;
-  //   }
-  //
-  //   const blob = new Blob([mergedArray], { type: 'video/mp4' });
-  //   const url = URL.createObjectURL(blob);
-  //
-  //   // Trigger download
-  //   const a = document.createElement('a');
-  //   a.href = url;
-  //   a.download = `video-${Date.now()}.mp4`;
-  //   document.body.appendChild(a);
-  //   a.click();
-  //   document.body.removeChild(a);
-  //   URL.revokeObjectURL(url);
-  //
-  //   downloadProgress.value = {
-  //     status: 'Complete!',
-  //     percent: 100,
-  //     details: 'Video downloaded successfully',
-  //   };
-  //
-  //   setTimeout(() => {
-  //     downloadProgress.value = null;
-  //   }, 3000);
-  //
-  // } catch (error) {
-  //   console.error('Download failed:', error);
-  //   downloadProgress.value = {
-  //     status: 'Failed',
-  //     percent: 0,
-  //     details: String(error),
-  //   };
-  //
-  //   setTimeout(() => {
-  //     downloadProgress.value = null;
-  //   }, 5000);
-  // } finally {
-  //   isDownloading.value = false;
-  // }
 };
 </script>
 
@@ -527,25 +453,6 @@ const downloadStream = async (m3u8Url: string) => {
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-
-.header-section {
-  text-align: center;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.title {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--font-color-1);
-  margin: 0 0 6px 0;
-}
-
-.subtitle {
-  font-size: 13px;
-  color: var(--font-color-2);
-  margin: 0;
 }
 
 .empty-state {
@@ -731,5 +638,69 @@ const downloadStream = async (m3u8Url: string) => {
   font-size: 12px;
   color: var(--font-color-2);
   margin: 0;
+}
+
+.concurrency-section {
+  padding: 14px 16px;
+  background: var(--card-bg-color);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.concurrency-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.concurrency-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--font-color-1);
+}
+
+.concurrency-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--purple);
+  min-width: 20px;
+  text-align: center;
+}
+
+.concurrency-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.concurrency-button {
+  flex: 1;
+  padding: 8px;
+  background: var(--card-bg-color);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--font-color-2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.concurrency-button:hover:not(:disabled) {
+  border-color: var(--purple);
+  color: var(--font-color-1);
+}
+
+.concurrency-button.active {
+  background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.concurrency-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 </style>
