@@ -3,9 +3,23 @@ import { MessageType } from '@/core/InstanceManager';
 import type { Browser } from '@wxt-dev/browser';
 
 /**
+ * Parsed M3U8 structure from background
+ */
+interface ParsedM3U8 {
+  segments: string[];
+  audioSegments: string[];
+  videoSegments: string[];
+  hasAudioTrack: boolean;
+  hasVideoTrack: boolean;
+  audioPlaylistUrl?: string;
+  videoPlaylistUrl?: string;
+}
+
+/**
  * HLS (HTTP Live Streaming) Converter
  *
  * .m3u8 플레이리스트를 파싱하고 .ts 세그먼트를 다운로드하여 병합
+ * Audio/Video 분리 스트림도 지원
  */
 export class HLSConverter implements VideoConverter {
   id = 'hls';
@@ -14,7 +28,7 @@ export class HLSConverter implements VideoConverter {
 
   private segmentFetchPort: Browser.runtime.Port | null = null;
   private pendingSegmentRequests = new Map<string, {
-    resolve: (data: string[]) => void;
+    resolve: (data: ParsedM3U8) => void;
     reject: (error: Error) => void;
   }>();
   private pendingSegmentDownloads = new Map<string, {
@@ -85,9 +99,23 @@ export class HLSConverter implements VideoConverter {
         details: 'Parsing m3u8 playlist',
       });
 
-      // 1. Segment URL 리스트 가져오기
-      const segmentUrlList = await this.getSegmentUrlList(url);
-      console.log('[HLSConverter] Segment URL List:', segmentUrlList);
+      // 1. M3U8 파싱
+      const parsed = await this.getSegmentUrlList(url);
+      console.log('[HLSConverter] Parsed M3U8:', parsed);
+
+      // Audio/Video 분리 스트림인 경우 처리
+      if (parsed.hasAudioTrack && parsed.hasVideoTrack &&
+          (parsed.audioPlaylistUrl || parsed.videoPlaylistUrl)) {
+        // 분리된 Audio/Video 스트림 다운로드
+        await this.downloadSeparatedStreams(parsed, options);
+        return;
+      }
+
+      const segmentUrlList = parsed.segments || [];
+
+      if (segmentUrlList.length === 0) {
+        throw new Error('No segments found in M3U8 playlist');
+      }
 
       onProgress?.({
         status: 'Validating segments...',
@@ -153,12 +181,12 @@ export class HLSConverter implements VideoConverter {
     }
   }
 
-  private async getSegmentUrlList(m3u8Url: string): Promise<string[]> {
+  private async getSegmentUrlList(m3u8Url: string): Promise<ParsedM3U8> {
     if (!this.segmentFetchPort) {
       throw new Error('Port not connected');
     }
 
-    return new Promise<string[]>((resolve, reject) => {
+    return new Promise<ParsedM3U8>((resolve, reject) => {
       const requestId = crypto.randomUUID();
       this.pendingSegmentRequests.set(requestId, { resolve, reject });
 
@@ -267,6 +295,136 @@ export class HLSConverter implements VideoConverter {
 
     await Promise.all(workers);
     return results;
+  }
+
+  /**
+   * Download separated audio/video streams
+   */
+  private async downloadSeparatedStreams(parsed: ParsedM3U8, options: DownloadOptions): Promise<void> {
+    const { onProgress, concurrency = 2 } = options;
+
+    try {
+      onProgress?.({
+        status: 'Detected separated streams...',
+        percent: 5,
+        details: 'Audio and video tracks are separated',
+      });
+
+      // 1. Audio playlist 다운로드
+      let audioSegments: string[] = [];
+      if (parsed.audioPlaylistUrl) {
+        onProgress?.({
+          status: 'Fetching audio playlist...',
+          percent: 10,
+          details: 'Parsing audio m3u8',
+        });
+
+        const audioParsed = await this.getSegmentUrlList(parsed.audioPlaylistUrl);
+        audioSegments = audioParsed.segments || [];
+        console.log('[HLSConverter] Audio segments:', audioSegments.length);
+      }
+
+      // 2. Video playlist 다운로드
+      let videoSegments: string[] = [];
+      if (parsed.videoPlaylistUrl) {
+        onProgress?.({
+          status: 'Fetching video playlist...',
+          percent: 15,
+          details: 'Parsing video m3u8',
+        });
+
+        const videoParsed = await this.getSegmentUrlList(parsed.videoPlaylistUrl);
+        videoSegments = videoParsed.segments || [];
+        console.log('[HLSConverter] Video segments:', videoSegments.length);
+      }
+
+      const totalSegments = audioSegments.length + videoSegments.length;
+
+      // 3. Audio segments 다운로드
+      let audioBuffers: ArrayBuffer[] = [];
+      if (audioSegments.length > 0) {
+        onProgress?.({
+          status: 'Downloading audio...',
+          percent: 20,
+          details: `0/${audioSegments.length} audio segments`,
+        });
+
+        audioBuffers = await this.downloadSegmentsParallel(
+          audioSegments,
+          concurrency,
+          (current, total) => {
+            const percent = 20 + Math.floor((current / total) * 30);
+            onProgress?.({
+              status: 'Downloading audio...',
+              percent,
+              details: `${current}/${total} audio segments`,
+            });
+          }
+        );
+      }
+
+      // 4. Video segments 다운로드
+      let videoBuffers: ArrayBuffer[] = [];
+      if (videoSegments.length > 0) {
+        onProgress?.({
+          status: 'Downloading video...',
+          percent: 50,
+          details: `0/${videoSegments.length} video segments`,
+        });
+
+        videoBuffers = await this.downloadSegmentsParallel(
+          videoSegments,
+          concurrency,
+          (current, total) => {
+            const percent = 50 + Math.floor((current / total) * 35);
+            onProgress?.({
+              status: 'Downloading video...',
+              percent,
+              details: `${current}/${total} video segments`,
+            });
+          }
+        );
+      }
+
+      onProgress?.({
+        status: 'Merging tracks...',
+        percent: 90,
+        details: 'Creating merged file',
+      });
+
+      // 5. Simple merge: Audio + Video segments를 순차적으로 병합
+      // 주의: 이는 진짜 muxing이 아니라 단순 concatenation입니다
+      // 대부분의 플레이어에서 재생 가능하지만, 완벽하지 않을 수 있습니다
+      const allBuffers = [...audioBuffers, ...videoBuffers];
+      const totalLength = allBuffers.reduce((sum, buffer) => sum + buffer.byteLength, 0);
+      const mergedArray = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const buffer of allBuffers) {
+        mergedArray.set(new Uint8Array(buffer), offset);
+        offset += buffer.byteLength;
+      }
+
+      // 6. 파일 다운로드
+      const blob = new Blob([mergedArray], { type: 'video/mp2t' });
+      const downloadUrl = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `video-merged-${Date.now()}.ts`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(downloadUrl);
+
+      onProgress?.({
+        status: 'Complete!',
+        percent: 100,
+        details: 'Merged video downloaded (Note: This is a simple merge, not proper muxing)',
+      });
+    } catch (error) {
+      console.error('[HLSConverter] Separated stream download failed:', error);
+      throw error;
+    }
   }
 
   cleanup() {

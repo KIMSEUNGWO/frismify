@@ -432,14 +432,68 @@ export default defineBackground(async () => {
                 func: async (url, id) => {
                   const res = await fetch(url);
                   const text = await res.text();
-                  const lists: string[] = text.split('\n')
-                      .map(line => line.trim())
-                      .filter(line => line.startsWith('http'))
+
+                  // Parse M3U8 using simple parser
+                  const lines = text.split('\n').map(line => line.trim()).filter(line => line);
+                  const baseUrl = url.substring(0, url.lastIndexOf('/') + 1);
+
+                  const result: any = {
+                    segments: [],
+                    audioSegments: [],
+                    videoSegments: [],
+                    hasAudioTrack: false,
+                    hasVideoTrack: false,
+                  };
+
+                  let currentAudioUrl: string | null = null;
+                  let currentVideoUrl: string | null = null;
+
+                  for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+
+                    // Check for audio/video track definitions
+                    if (line.startsWith('#EXT-X-MEDIA:')) {
+                      if (line.includes('TYPE=AUDIO')) {
+                        result.hasAudioTrack = true;
+                        const uriMatch = line.match(/URI="([^"]+)"/);
+                        if (uriMatch) {
+                          currentAudioUrl = uriMatch[1].startsWith('http')
+                            ? uriMatch[1]
+                            : baseUrl + uriMatch[1];
+                        }
+                      }
+                    }
+
+                    // Check for stream info (video variants)
+                    if (line.startsWith('#EXT-X-STREAM-INF:')) {
+                      result.hasVideoTrack = true;
+                      const nextLine = lines[i + 1];
+                      if (nextLine && !nextLine.startsWith('#')) {
+                        currentVideoUrl = nextLine.startsWith('http')
+                          ? nextLine
+                          : baseUrl + nextLine;
+                      }
+                    }
+
+                    // Collect segment URLs (for simple playlists)
+                    if (!line.startsWith('#') && (line.endsWith('.ts') || line.endsWith('.m4s'))) {
+                      const segmentUrl = line.startsWith('http') ? line : baseUrl + line;
+                      result.segments.push(segmentUrl);
+                    }
+                  }
+
+                  // If this is a master playlist with separate audio/video
+                  if (result.hasAudioTrack && currentAudioUrl) {
+                    result.audioPlaylistUrl = currentAudioUrl;
+                  }
+                  if (result.hasVideoTrack && currentVideoUrl) {
+                    result.videoPlaylistUrl = currentVideoUrl;
+                  }
 
                   window.postMessage({
                     type: MessageType.GET_SEGMENT_URL_LIST,
                     requestId: id,
-                    data: lists
+                    data: result
                   }, "*");
                 },
                 args: [m3u8Url, requestId],
