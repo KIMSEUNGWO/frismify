@@ -105,8 +105,7 @@ onMounted(async () => {
   }
 
   // Initialize converters
-  const port = browser.runtime.connect({ name: "segment-fetch" });
-  hlsConverter = new HLSConverter(port);
+  hlsConverter = new HLSConverter();
   mp4Converter = new MP4Converter();
   dashConverter = new DASHConverter();
 

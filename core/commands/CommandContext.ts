@@ -8,8 +8,7 @@
 import type { PluginManager } from '@/core/PluginManager';
 import type { PluginRegistry } from '@/core/PluginRegistry';
 import type { StorageManager } from '@/core/StorageManager';
-// BackgroundFetchService는 Phase 4에서 구현 예정
-// import type { BackgroundFetchService } from '@/core/BackgroundFetchService';
+import type { BackgroundFetchService } from '@/core/BackgroundFetchService';
 
 /**
  * CommandContext 인터페이스
@@ -43,10 +42,9 @@ export interface CommandContext {
   storageManager: StorageManager;
 
   /**
-   * Background Fetch 서비스 (HLS Downloader용, 선택사항)
-   * Phase 4에서 구현 예정
+   * Background Fetch 서비스 (HLS Downloader용)
    */
-  backgroundFetchService?: any; // BackgroundFetchService;
+  backgroundFetchService: BackgroundFetchService;
 
   /**
    * 메시지 발신자 정보 (선택사항)

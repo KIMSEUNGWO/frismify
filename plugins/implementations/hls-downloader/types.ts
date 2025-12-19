@@ -47,6 +47,12 @@ export interface VideoConverter {
    * @param options - 다운로드 옵션
    */
   download(url: string, options: DownloadOptions): Promise<void>;
+
+  /**
+   * Converter cleanup (선택사항)
+   * 컴포넌트 unmount 시 호출되어 리소스를 정리합니다.
+   */
+  cleanup?(): void;
 }
 
 /**

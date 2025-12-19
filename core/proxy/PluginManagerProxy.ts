@@ -11,10 +11,11 @@
 
 import { MessageType } from "@/core/InstanceManager";
 import type { AppState, Plugin, PluginState } from '@/types';
+import { PortManager, PortName } from '@/core/PortManager';
 
 class PluginManagerProxy {
     private listeners = new Set<(state: AppState) => void>();
-    private port?: globalThis.Browser.runtime.Port;
+    private portManager = PortManager.getInstance();
     private initialized = false;
 
     constructor() {
@@ -55,27 +56,48 @@ class PluginManagerProxy {
         if (this.initialized || !this.canConnect()) return;
 
         try {
-            // background 이벤트 수신 포트 오픈
-            this.port = browser.runtime.connect({ name: "plugin-events" });
+            // PortManager를 통해 연결 (자동 재연결 활성화)
+            const port = this.portManager.connect(PortName.PLUGIN_EVENTS);
+
+            // 자동 재연결 활성화 (최대 5회, 재연결 시 리스너 재등록)
+            this.portManager.enableAutoReconnect(
+                PortName.PLUGIN_EVENTS,
+                5,
+                () => {
+                    console.log('[PluginManagerProxy] Reconnected, re-registering listeners');
+                    this.setupPortListeners();
+                }
+            );
+
             this.initialized = true;
-            console.log('[PluginManagerProxy] Port connected');
+            console.log('[PluginManagerProxy] Port connected via PortManager');
+
+            // 리스너 등록
+            this.setupPortListeners();
         } catch (error) {
             console.warn('[PluginManagerProxy] Failed to connect port:', error);
             return;
         }
+    }
+
+    /**
+     * Port 리스너 설정 (재연결 시에도 재사용)
+     */
+    private setupPortListeners() {
+        if (!this.portManager.isConnected(PortName.PLUGIN_EVENTS)) {
+            console.warn('[PluginManagerProxy] Port not connected, cannot setup listeners');
+            return;
+        }
+
+        const port = this.portManager.connect(PortName.PLUGIN_EVENTS);
 
         // background → proxy 로 push된 이벤트 처리
-        this.port.onMessage.addListener((msg) => {
+        port.onMessage.addListener((msg) => {
             if (msg.type === "PLUGIN_STATE_CHANGED") {
                 console.log('[PluginManagerProxy] State changed received:', msg.state);
                 const state = msg.state as AppState;
                 this.listeners.forEach((cb) => cb(state));
             }
-        });
-
-        this.port.onDisconnect.addListener(() => {
-            console.log('[PluginManagerProxy] Port disconnected');
-            this.port = undefined;
         });
     }
 
@@ -209,7 +231,7 @@ class PluginManagerProxy {
      * Port 재연결 (필요시)
      */
     reconnect(): void {
-        if (!this.port) {
+        if (!this.portManager.isConnected(PortName.PLUGIN_EVENTS)) {
             this.initializePort();
         }
     }

@@ -6,6 +6,11 @@
  */
 
 export { PluginManager } from './PluginManager';
+export { PluginRegistry } from './PluginRegistry';
+export { CommandRegistry } from './CommandRegistry';
+export { MessageBus } from './MessageBus';
+export { BackgroundFetchService } from './BackgroundFetchService';
+export { PortManager, PortName } from './PortManager';
 export { ShortcutManager } from './ShortcutManager';
 export { StorageManager } from './StorageManager';
 export { EventManager} from './ResourceManagers';

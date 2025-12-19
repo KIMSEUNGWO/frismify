@@ -4,18 +4,20 @@ import type {ContentScriptContext} from "wxt/utils/content-script-context";
 import { PluginRegistry } from "./PluginRegistry";
 
 
-interface EventTarget {
-    target: Element;
-    event: ElementEventMap;
+interface EventListenerEntry {
+    target: Element | Document;
+    event: string;
     handler: any;
     options? : boolean | AddEventListenerOptions
 }
 export class EventManager {
 
-    private listeners: EventTarget[] = [];
+    private listeners: EventListenerEntry[] = [];
 
-    add<K extends keyof ElementEventMap>(target:Element, event:K, handler:(this: Element, ev: ElementEventMap[K]) => any, options?: boolean | AddEventListenerOptions) {
-        const eventTarget: EventTarget = {target, event, handler, options};
+    add<K extends keyof DocumentEventMap>(target: Element | Document, event: K, handler: (this: Document, ev: DocumentEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
+    add<K extends keyof ElementEventMap>(target: Element, event: K, handler: (this: Element, ev: ElementEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
+    add(target: Element | Document, event: string, handler: any, options?: boolean | AddEventListenerOptions) {
+        const eventTarget: EventListenerEntry = {target, event, handler, options};
         this._add(eventTarget);
         this.listeners.push(eventTarget);
     }
@@ -25,7 +27,7 @@ export class EventManager {
         this.listeners = [];
     }
 
-    removeByTargetAndEvent<K extends keyof ElementEventMap>(target: Element, event:K) {
+    removeByTargetAndEvent(target: Element | Document, event: string) {
         this.listeners = this.listeners.filter(listener => {
             if (listener.target === target && listener.event === event) {
                 this._remove(listener);
@@ -35,7 +37,7 @@ export class EventManager {
         });
     }
 
-    removeByTarget(target: Element) {
+    removeByTarget(target: Element | Document) {
         this.listeners = this.listeners.filter(listener => {
             if (listener.target === target) {
                 this._remove(listener);
@@ -45,10 +47,10 @@ export class EventManager {
         })
     }
 
-    private _add(eventTarget: EventTarget) {
+    private _add(eventTarget: EventListenerEntry) {
         eventTarget.target.addEventListener(eventTarget.event, eventTarget.handler, eventTarget.options);
     }
-    private _remove(eventTarget: EventTarget) {
+    private _remove(eventTarget: EventListenerEntry) {
         eventTarget.target.removeEventListener(eventTarget.event, eventTarget.handler, eventTarget.options);
     }
 }

@@ -1,6 +1,6 @@
 import type { VideoConverter, DownloadOptions } from '../types';
 import { MessageType } from '@/core/InstanceManager';
-import type { Browser } from '@wxt-dev/browser';
+import { MessageBus } from '@/core/MessageBus';
 
 /**
  * Parsed M3U8 structure from background
@@ -26,64 +26,7 @@ export class HLSConverter implements VideoConverter {
   name = 'HLS Stream';
   description = 'Download HLS (.m3u8) streams and convert to .ts file';
 
-  private segmentFetchPort: Browser.runtime.Port | null = null;
-  private pendingSegmentRequests = new Map<string, {
-    resolve: (data: ParsedM3U8) => void;
-    reject: (error: Error) => void;
-  }>();
-  private pendingSegmentDownloads = new Map<string, {
-    resolve: (data: ArrayBuffer) => void;
-    reject: (error: Error) => void;
-  }>();
-
-  constructor(port: Browser.runtime.Port) {
-    this.segmentFetchPort = port;
-    this.setupMessageListener();
-  }
-
-  private setupMessageListener() {
-    if (!this.segmentFetchPort) return;
-
-    this.segmentFetchPort.onMessage.addListener((message: any) => {
-      // Segment URL List 결과
-      if (message.type === MessageType.GET_SEGMENT_URL_LIST_RESULT) {
-        const firstRequest = this.pendingSegmentRequests.values().next().value;
-        if (firstRequest) {
-          if (message.success && message.data) {
-            firstRequest.resolve(message.data);
-          } else {
-            firstRequest.reject(new Error(message.error || 'Failed to fetch segment list'));
-          }
-          const firstKey = this.pendingSegmentRequests.keys().next().value;
-          if (firstKey) {
-            this.pendingSegmentRequests.delete(firstKey);
-          }
-        }
-      }
-
-      // Segment 다운로드 결과
-      if (message.type === MessageType.DOWNLOAD_SEGMENT_RESULT) {
-        const firstDownload = this.pendingSegmentDownloads.values().next().value;
-        if (firstDownload) {
-          if (message.success && message.data) {
-            // base64 → ArrayBuffer 변환
-            const binary = atob(message.data);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) {
-              bytes[i] = binary.charCodeAt(i);
-            }
-            firstDownload.resolve(bytes.buffer);
-          } else {
-            firstDownload.reject(new Error(message.error || 'Failed to download segment'));
-          }
-          const firstKey = this.pendingSegmentDownloads.keys().next().value;
-          if (firstKey) {
-            this.pendingSegmentDownloads.delete(firstKey);
-          }
-        }
-      }
-    });
-  }
+  private messageBus = MessageBus.getInstance();
 
   canHandle(url: string): boolean {
     return url.toLowerCase().includes('.m3u8');
@@ -182,27 +125,16 @@ export class HLSConverter implements VideoConverter {
   }
 
   private async getSegmentUrlList(m3u8Url: string): Promise<ParsedM3U8> {
-    if (!this.segmentFetchPort) {
-      throw new Error('Port not connected');
+    const response = await this.messageBus.send(
+      MessageType.GET_SEGMENT_URL_LIST,
+      { m3u8Url }
+    );
+
+    if (!response.success || !response.data) {
+      throw new Error(response.error || 'Failed to fetch segment list');
     }
 
-    return new Promise<ParsedM3U8>((resolve, reject) => {
-      const requestId = crypto.randomUUID();
-      this.pendingSegmentRequests.set(requestId, { resolve, reject });
-
-      this.segmentFetchPort!.postMessage({
-        type: MessageType.GET_SEGMENT_URL_LIST,
-        m3u8Url: m3u8Url,
-      });
-
-      // 타임아웃 설정 (30초)
-      setTimeout(() => {
-        if (this.pendingSegmentRequests.has(requestId)) {
-          reject(new Error('Request timeout'));
-          this.pendingSegmentRequests.delete(requestId);
-        }
-      }, 30000);
-    });
+    return response.data;
   }
 
   private validateSegments(segments: string[]): { valid: boolean; error?: string } {
@@ -236,27 +168,23 @@ export class HLSConverter implements VideoConverter {
   }
 
   private async downloadSegment(segmentUrl: string): Promise<ArrayBuffer> {
-    if (!this.segmentFetchPort) {
-      throw new Error('Port not connected');
+    const response = await this.messageBus.send(
+      MessageType.DOWNLOAD_SEGMENT,
+      { segmentUrl }
+    );
+
+    if (!response.success || !response.data) {
+      throw new Error(response.error || 'Failed to download segment');
     }
 
-    return new Promise<ArrayBuffer>((resolve, reject) => {
-      const requestId = crypto.randomUUID();
-      this.pendingSegmentDownloads.set(requestId, { resolve, reject });
+    // base64 → ArrayBuffer 변환
+    const binary = atob(response.data);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
 
-      this.segmentFetchPort!.postMessage({
-        type: MessageType.DOWNLOAD_SEGMENT,
-        segmentUrl: segmentUrl,
-      });
-
-      // 타임아웃 설정 (60초)
-      setTimeout(() => {
-        if (this.pendingSegmentDownloads.has(requestId)) {
-          reject(new Error('Segment download timeout'));
-          this.pendingSegmentDownloads.delete(requestId);
-        }
-      }, 60000);
-    });
+    return bytes.buffer;
   }
 
   private async downloadSegmentsParallel(
@@ -427,11 +355,4 @@ export class HLSConverter implements VideoConverter {
     }
   }
 
-  cleanup() {
-    this.pendingSegmentRequests.forEach(({ reject }) => {
-      reject(new Error('Converter cleanup'));
-    });
-    this.pendingSegmentRequests.clear();
-    this.pendingSegmentDownloads.clear();
-  }
 }
