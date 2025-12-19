@@ -3,6 +3,7 @@ import App from "@/entrypoints/content/App.vue";
 import { createModalRouter } from "@/entrypoints/content/router";
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import {isModalPlugin, ModalPlugin} from '@/types';
+import { PluginRegistry } from './PluginRegistry';
 
 
 export class ModalManager {
@@ -11,13 +12,15 @@ export class ModalManager {
     private modalStack: string[] = []; // Stack of plugin IDs
     private apps: Map<string, ReturnType<typeof createApp>> = new Map();
     private ctx?: ContentScriptContext; // Content script context
-    private plugins: Map<string, ModalPlugin> = new Map(); // Plugin registry
+    private pluginRegistry: PluginRegistry;
 
     private readonly MODAL_CONTAINER = 'modal-container';
     private readonly PADDING = 20;
     private readonly MODAL_GAP = 10;
 
-    private constructor() {}
+    private constructor() {
+        this.pluginRegistry = PluginRegistry.getInstance();
+    }
 
     public static getInstance(): ModalManager {
         if (!ModalManager.instance) {
@@ -26,13 +29,9 @@ export class ModalManager {
         return ModalManager.instance;
     }
 
-    public initialize(ctx: ContentScriptContext, allPlugins: Plugin[]) {
-        const modalPlugins = allPlugins.filter(p => isModalPlugin(p)) as ModalPlugin[];
-
+    public initialize(ctx: ContentScriptContext) {
         this.ctx = ctx;
-        for (const plugin of modalPlugins) {
-            this.plugins.set(plugin.id, plugin);
-        }
+        console.log(`[ModalManager] Initialized with context`);
     }
 
     public isOpen(pluginId: string): boolean {
@@ -60,8 +59,8 @@ export class ModalManager {
         this.notifyStackChange();
 
         // Call onOpen hook if exists
-        const plugin = this.plugins.get(pluginId);
-        if (plugin?.onOpen && this.ctx) {
+        const plugin = this.pluginRegistry.get(pluginId);
+        if (plugin && isModalPlugin(plugin) && plugin.onOpen && this.ctx) {
             try {
                 await plugin.onOpen(this.ctx);
                 console.log(`✅ Modal onOpen called: ${pluginId}`);
@@ -76,8 +75,8 @@ export class ModalManager {
         if (!targetId) return;
 
         // Call onClose hook if exists
-        const plugin = this.plugins.get(targetId);
-        if (plugin?.onClose && this.ctx) {
+        const plugin = this.pluginRegistry.get(targetId);
+        if (plugin && isModalPlugin(plugin) && plugin.onClose && this.ctx) {
             try {
                 await plugin.onClose(this.ctx);
                 console.log(`✅ Modal onClose called: ${targetId}`);

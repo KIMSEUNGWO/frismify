@@ -35,8 +35,8 @@ export default defineContentScript({
     console.log(`📦 Found ${allPlugins.length} plugins`);
 
     /* Initialize */
-    modalManager.initialize(ctx, allPlugins);
-    await activeManager.initialize(ctx, allPlugins);
+    modalManager.initialize(ctx);
+    await activeManager.initialize(ctx);
 
 
     // Background에서 플러그인 실행 메시지 처리

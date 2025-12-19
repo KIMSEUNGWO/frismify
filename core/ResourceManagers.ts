@@ -1,6 +1,7 @@
-import {isPersistentPlugin, PersistentPlugin, type Plugin} from "@/types";
+import {isPersistentPlugin, type Plugin} from "@/types";
 import {pluginManagerProxy} from "@/core/proxy/PluginManagerProxy";
 import type {ContentScriptContext} from "wxt/utils/content-script-context";
+import { PluginRegistry } from "./PluginRegistry";
 
 
 interface EventTarget {
@@ -56,17 +57,22 @@ export class EventManager {
 
 export class ActiveManager {
 
-    private activatedPlugins: Map<string, PersistentPlugin> = new Map<string, PersistentPlugin>;
+    private activatedPluginIds: Set<string> = new Set();
+    private pluginRegistry: PluginRegistry;
 
-    async initialize(ctx: ContentScriptContext, allPlugins: Plugin[]) {
-        const persistentPlugins = allPlugins.filter(isPersistentPlugin);
+    constructor() {
+        this.pluginRegistry = PluginRegistry.getInstance();
+    }
+
+    async initialize(ctx: ContentScriptContext) {
+        const persistentPlugins = this.pluginRegistry.getByType(isPersistentPlugin);
 
         for (const plugin of persistentPlugins) {
             try {
                 const state = await pluginManagerProxy.getPluginState(plugin.id);
                 if (state?.enabled) {
                     await plugin.onActivate(ctx);
-                    this.activatedPlugins.set(plugin.id, plugin);
+                    this.activatedPluginIds.add(plugin.id);
                     console.log(`✅ Plugin activated: ${plugin.name}`);
                 }
             } catch (error) {
@@ -76,13 +82,17 @@ export class ActiveManager {
     }
 
     async invalidated() {
-        for (const plugin of this.activatedPlugins.values()) {
-            try {
-                await plugin.onCleanup();
-                console.log(`🧹 Plugin cleaned up: ${plugin.name}`);
-            } catch (error) {
-                console.error(`❌ Failed to cleanup plugin ${plugin.id}:`, error);
+        for (const pluginId of this.activatedPluginIds) {
+            const plugin = this.pluginRegistry.get(pluginId);
+            if (plugin && isPersistentPlugin(plugin)) {
+                try {
+                    await plugin.onCleanup();
+                    console.log(`🧹 Plugin cleaned up: ${plugin.name}`);
+                } catch (error) {
+                    console.error(`❌ Failed to cleanup plugin ${pluginId}:`, error);
+                }
             }
         }
+        this.activatedPluginIds.clear();
     }
 }

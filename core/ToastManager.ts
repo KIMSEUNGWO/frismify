@@ -6,7 +6,7 @@
  */
 
 import { type Plugin } from '@/types';
-import { allPlugins } from '@/plugins';
+import { PluginRegistry } from './PluginRegistry';
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 export interface ToastOptions {
@@ -30,8 +30,11 @@ export class ToastManager {
   private container: HTMLDivElement | null = null;
   private toasts: Map<string, Toast> = new Map();
   private nextId = 0;
+  private pluginRegistry: PluginRegistry;
 
-  private constructor() {}
+  private constructor() {
+    this.pluginRegistry = PluginRegistry.getInstance();
+  }
 
   static getInstance(): ToastManager {
     if (!ToastManager.instance) {
@@ -178,7 +181,7 @@ export class ToastManager {
    */
   private createToastElement(message: string, type: ToastType, pluginId?: string): HTMLDivElement {
     // Find plugin if pluginId is provided
-    const plugin = allPlugins.find(p => p.id === pluginId);
+    const plugin = pluginId ? this.pluginRegistry.get(pluginId) : undefined;
 
     const toast = document.createElement('div');
     toast.style.cssText = `

@@ -18,18 +18,18 @@
 import type { Plugin, PluginState, AppState } from '@/types';
 import { isBackgroundMonitorPlugin } from '@/types';
 import { StorageManager } from './StorageManager';
+import { PluginRegistry } from './PluginRegistry';
 
 export class PluginManager {
   private static instance: PluginManager;
 
   // 의존성 (내부에서만 사용)
   private storage: StorageManager;
-
-  // 플러그인 레지스트리
-  private plugins: Map<string, Plugin> = new Map();
+  private pluginRegistry: PluginRegistry;
 
   private constructor() {
     this.storage = StorageManager.getInstance();
+    this.pluginRegistry = PluginRegistry.getInstance();
   }
 
   /**
@@ -50,13 +50,8 @@ export class PluginManager {
    * 플러그인 등록
    */
   public async register(plugin: Plugin): Promise<void> {
-    if (this.plugins.has(plugin.id)) {
-      console.warn(`[PluginManager] Plugin ${plugin.id} already registered`);
-      return;
-    }
-
-    this.plugins.set(plugin.id, plugin);
-    console.log(`[PluginManager] Plugin registered: ${plugin.id}`);
+    // PluginRegistry에 등록 (중복 체크 포함)
+    this.pluginRegistry.register(plugin);
 
     // Storage에 초기 상태가 없으면 생성
     await this.initializePluginState(plugin);
@@ -112,7 +107,7 @@ export class PluginManager {
    * 모든 플러그인 가져오기
    */
   public getPlugins(): Plugin[] {
-    return Array.from(this.plugins.values());
+    return this.pluginRegistry.getAll();
   }
 
   // ========================================
@@ -137,7 +132,7 @@ export class PluginManager {
     console.log(`[PluginManager] Plugin ${pluginId}: ${pluginState.enabled ? 'enabled' : 'disabled'}`);
 
     // BackgroundMonitorPlugin 라이프사이클 처리
-    const plugin = this.plugins.get(pluginId);
+    const plugin = this.pluginRegistry.get(pluginId);
     if (plugin && isBackgroundMonitorPlugin(plugin)) {
       if (pluginState.enabled && !wasEnabled) {
         // 활성화: onBackgroundActivate 호출
@@ -168,7 +163,7 @@ export class PluginManager {
 
     // BackgroundMonitorPlugin 라이프사이클 처리
     if (!wasEnabled) {
-      const plugin = this.plugins.get(pluginId);
+      const plugin = this.pluginRegistry.get(pluginId);
       if (plugin && isBackgroundMonitorPlugin(plugin)) {
         await plugin.onBackgroundActivate();
         console.log(`[PluginManager] BackgroundMonitorPlugin ${pluginId} activated`);
@@ -193,7 +188,7 @@ export class PluginManager {
 
     // BackgroundMonitorPlugin 라이프사이클 처리
     if (wasEnabled) {
-      const plugin = this.plugins.get(pluginId);
+      const plugin = this.pluginRegistry.get(pluginId);
       if (plugin && isBackgroundMonitorPlugin(plugin)) {
         await plugin.onBackgroundCleanup();
         console.log(`[PluginManager] BackgroundMonitorPlugin ${pluginId} cleaned up`);
@@ -317,11 +312,11 @@ export class PluginManager {
    * 플러그인 개수
    */
   public getPluginCount(): number {
-    return this.plugins.size;
+    return this.pluginRegistry.getCount();
   }
 
   get(pluginId: string) : Plugin | undefined {
-    return this.plugins.get(pluginId);
+    return this.pluginRegistry.get(pluginId);
   }
 }
 
