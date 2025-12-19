@@ -8,6 +8,7 @@
 export { PluginManager } from './PluginManager';
 export { ShortcutManager } from './ShortcutManager';
 export { StorageManager } from './StorageManager';
+export { EventManager} from './ResourceManagers';
 export { pluginManagerProxy } from './proxy/PluginManagerProxy';
 export { ToastManager, toastManager } from './ToastManager';
 export type { ToastType, ToastOptions } from './ToastManager';

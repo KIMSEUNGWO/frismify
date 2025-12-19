@@ -12,8 +12,8 @@
  * - 싱글톤: 전역 단일 인스턴스
  */
 
-import type { ShortcutKey } from '../types';
-import { Platform } from '../utils/platform';
+import type { ShortcutKey } from '@/types';
+import { Platform } from '@/utils';
 
 export class ShortcutManager {
   private static instance: ShortcutManager;
@@ -157,27 +157,6 @@ export class ShortcutManager {
     };
 
     return specialKeys[key] || specialKeys[upperKey] || upperKey;
-  }
-
-  /**
-   * 단축키 유효성 검사
-   */
-  public isValid(keys: ShortcutKey[]): boolean {
-    if (keys.length === 0) {
-      return false;
-    }
-
-    // 최소 하나의 수정자 키가 있어야 함
-    const hasModifier = keys.some(key =>
-      ['Cmd', 'Shift', 'Alt', 'Ctrl'].includes(key)
-    );
-
-    // 일반 키가 정확히 하나 있어야 함
-    const normalKeys = keys.filter(
-      key => !['Cmd', 'Shift', 'Alt', 'Ctrl'].includes(key)
-    );
-
-    return hasModifier && normalKeys.length === 1;
   }
 }
 

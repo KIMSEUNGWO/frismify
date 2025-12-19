@@ -2,7 +2,7 @@ import {createApp} from "vue";
 import App from "@/entrypoints/content/App.vue";
 import { createModalRouter } from "@/entrypoints/content/router";
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
-import type { ModalPlugin } from '@/types';
+import {isModalPlugin, ModalPlugin} from '@/types';
 
 
 export class ModalManager {
@@ -26,9 +26,11 @@ export class ModalManager {
         return ModalManager.instance;
     }
 
-    public initialize(ctx: ContentScriptContext, plugins: ModalPlugin[]) {
+    public initialize(ctx: ContentScriptContext, allPlugins: Plugin[]) {
+        const modalPlugins = allPlugins.filter(p => isModalPlugin(p)) as ModalPlugin[];
+
         this.ctx = ctx;
-        for (const plugin of plugins) {
+        for (const plugin of modalPlugins) {
             this.plugins.set(plugin.id, plugin);
         }
     }

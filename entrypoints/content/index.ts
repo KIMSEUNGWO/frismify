@@ -10,7 +10,7 @@
  * 중요: 플러그인 등록은 Background에서만! (Single Source of Truth)
  */
 
-import { ShortcutManager } from '@/core';
+import {EventManager, ShortcutManager} from '@/core';
 import { allPlugins } from '@/plugins';
 import { pluginManagerProxy } from '@/core/proxy/PluginManagerProxy';
 
@@ -18,8 +18,9 @@ import '@/assets/styles/main.css';
 import '@/assets/fonts/fonts.css'
 import '@/plugins';
 import {modalManager} from "@/core/ModalManager";
-import {isExecutablePlugin, isModalPlugin, isPersistentPlugin, ModalPlugin} from "@/types";
+import {isExecutablePlugin} from "@/types";
 import {MessageType} from "@/core/InstanceManager";
+import {ActiveManager} from "@/core/ResourceManagers";
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -28,29 +29,15 @@ export default defineContentScript({
     console.log('🎯 Content script loaded');
 
     const shortcut = ShortcutManager.getInstance();
-    const activatedPlugins = new Map<string, any>(); // 활성화된 플러그인 추적 (이 탭 전용)
+    const eventManager = new EventManager();
+    const activeManager = new ActiveManager();
 
     console.log(`📦 Found ${allPlugins.length} plugins`);
 
-    // Initialize ModalManager with context and all plugins that can open modals
-    const modalPlugins = allPlugins.filter(p => isModalPlugin(p)) as ModalPlugin[];
-    modalManager.initialize(ctx, modalPlugins);
+    /* Initialize */
+    modalManager.initialize(ctx, allPlugins);
+    await activeManager.initialize(ctx, allPlugins);
 
-    // Background로부터 상태를 가져와서 플러그인 activate
-    for (const plugin of allPlugins) {
-      const state = await pluginManagerProxy.getPluginState(plugin.id);
-
-      // enabled이고 onActivate가 정의되어 있으면 activate
-      if (state?.enabled && isPersistentPlugin(plugin)) {
-        try {
-          await plugin.onActivate(ctx);
-          activatedPlugins.set(plugin.id, plugin);
-          console.log(`✅ Plugin activated: ${plugin.name}`);
-        } catch (error) {
-          console.error(`❌ Failed to activate plugin ${plugin.id}:`, error);
-        }
-      }
-    }
 
     // Background에서 플러그인 실행 메시지 처리
     browser.runtime.onMessage.addListener(async (message) => {
@@ -153,25 +140,16 @@ export default defineContentScript({
       }
     });
 
+
     // 전역 keydown 이벤트 리스너 등록
-    document.addEventListener('keydown', handleShortcut, true);
+    eventManager.add(document, 'keydown', handleShortcut, true);
 
     // Context 무효화 시 정리 (비공유 - 이 탭에서 activate된 것만 cleanup)
     ctx.onInvalidated(async () => {
       console.log('🧹 Context invalidated, cleaning up');
-      document.removeEventListener('keydown', handleShortcut, true);
-
+      eventManager.removeAll();
       // 이 탭에서 activate된 플러그인들만 cleanup
-      for (const plugin of activatedPlugins.values()) {
-        if (plugin.onCleanup) {
-          try {
-            await plugin.onCleanup();
-            console.log(`🧹 Plugin cleaned up: ${plugin.name}`);
-          } catch (error) {
-            console.error(`❌ Failed to cleanup plugin ${plugin.id}:`, error);
-          }
-        }
-      }
+      await activeManager.invalidated();
     });
   },
 });
