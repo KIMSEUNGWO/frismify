@@ -7,6 +7,7 @@
 
 import type { Plugin, PluginState, PluginSetting } from '@/types';
 import { MessageType } from '@/core/InstanceManager';
+import type { VideoItem } from '@/plugins/implementations/hls-downloader/types';
 
 /**
  * Port 이름 Enum (하드코딩 제거)
@@ -112,8 +113,8 @@ export interface MessagePayloads {
 
   // HLS Downloader (5개)
   [MessageType.GET_M3U8_LIST]: {
-    request: { tabId: number };
-    response: { m3u8Urls: string[] };
+    request: { tabId?: number };
+    response: { m3u8List: VideoItem[] };
   };
 
   [MessageType.GET_SEGMENT_URL_LIST]: {

@@ -53,6 +53,16 @@ export const hlsDownloader: BackgroundMonitorModalPlugin = {
   onBackgroundActivate: async () => {
     console.log('[HLS Downloader] Background monitoring activated');
 
+    // 기존 리스너가 있으면 제거 (중복 등록 방지)
+    if (webRequestListener) {
+      browser.webRequest.onBeforeRequest.removeListener(webRequestListener);
+      console.log('[HLS Downloader] Removed existing webRequest listener');
+    }
+    if (tabRemovedListener) {
+      browser.tabs.onRemoved.removeListener(tabRemovedListener);
+      console.log('[HLS Downloader] Removed existing tab listener');
+    }
+
     // webRequest 리스너 등록 (onBeforeRequest로 변경하여 캐시에서도 감지)
     webRequestListener = (details) => {
       const url = details.url;
@@ -82,6 +92,7 @@ export const hlsDownloader: BackgroundMonitorModalPlugin = {
           detectedM3u8Map.set(tabId, []);
         }
         detectedM3u8Map.get(tabId)!.push({ url, type: 'mp4' });
+        return undefined;
       }
 
       // m3u8 파일 감지 (HLS)
@@ -97,16 +108,17 @@ export const hlsDownloader: BackgroundMonitorModalPlugin = {
 
         // master.m3u8 필터링 (URL 기반)
         // playlist.m3u8는 품질별 실제 segment 리스트이므로 포함해야 함
-        const urlLower = url.toLowerCase();
-        if (urlLower.includes('master.m3u8')) {
-          console.log('[HLS Downloader] Skipping master playlist:', url);
-          return undefined;
-        }
+        // const urlLower = url.toLowerCase();
+        // if (urlLower.includes('master.m3u8')) {
+        //   console.log('[HLS Downloader] Skipping master playlist:', url);
+        //   return undefined;
+        // }
 
         if (!detectedM3u8Map.has(tabId)) {
           detectedM3u8Map.set(tabId, []);
         }
         detectedM3u8Map.get(tabId)!.push({ url, type: 'hls' });
+        return undefined;
       }
 
       // mpd 파일 감지 (DASH)
@@ -124,6 +136,7 @@ export const hlsDownloader: BackgroundMonitorModalPlugin = {
           detectedM3u8Map.set(tabId, []);
         }
         detectedM3u8Map.get(tabId)!.push({ url, type: 'dash' });
+        return undefined;
       }
 
       return undefined;

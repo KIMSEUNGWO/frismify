@@ -7,10 +7,9 @@
  * - Chrome Commands (단축키) 처리
  */
 
-import {PluginManager} from '@/core';
+import {PluginManager, PortName} from '@/core';
 import {registerPlugins} from '@/plugins';
 import {MessageType} from "@/core/InstanceManager";
-import { detectedM3u8Map } from '@/plugins/implementations/hls-downloader';
 import { PluginRegistry } from '@/core/PluginRegistry';
 import { CommandRegistry } from '@/core/CommandRegistry';
 import { MessageBus } from '@/core/MessageBus';
@@ -35,6 +34,28 @@ import { StartNetworkThrottleCommand } from '@/core/commands/StartNetworkThrottl
 import { StopNetworkThrottleCommand } from '@/core/commands/StopNetworkThrottleCommand';
 import { GetSegmentUrlListCommand } from '@/core/commands/GetSegmentUrlListCommand';
 import { DownloadSegmentCommand } from '@/core/commands/DownloadSegmentCommand';
+import { GetM3u8ListCommand } from '@/core/commands/GetM3u8ListCommand';
+import { DownloadHLSCommand } from '@/core/commands/DownloadHLSCommand';
+import { isBackgroundMonitorPlugin } from '@/types';
+
+/**
+ * Service Worker 재시작 시 활성화된 BackgroundMonitorPlugin의 리스너를 재등록합니다.
+ */
+async function initializeBackgroundMonitors() {
+  const pluginManager = PluginManager.getInstance();
+  const plugins = pluginManager.getPlugins();
+  const states = await pluginManager.getPluginStates();
+
+  for (const plugin of plugins) {
+    if (isBackgroundMonitorPlugin(plugin)) {
+      const state = states[plugin.id];
+      if (state?.enabled) {
+        console.log(`[Background] Re-initializing BackgroundMonitorPlugin: ${plugin.id}`);
+        await plugin.onBackgroundActivate();
+      }
+    }
+  }
+}
 
 export default defineBackground(async () => {
   console.log('🚀 Background script loaded');
@@ -43,7 +64,7 @@ export default defineBackground(async () => {
 
   // Port 연결 처리
   browser.runtime.onConnect.addListener((port) => {
-    if (port.name === "plugin-events") {
+    if (port.name === PortName.PLUGIN_EVENTS) {
       console.log('[Background] Port connected:', port.name);
       ports.add(port);
       port.onDisconnect.addListener(() => {
@@ -60,6 +81,9 @@ export default defineBackground(async () => {
   await registerPlugins();
 
   console.log('📦 Registered plugins:', pluginManager.getPlugins().map(p => p.name));
+
+  // Service Worker 재시작 시 활성화된 BackgroundMonitorPlugin의 리스너 재등록
+  await initializeBackgroundMonitors();
 
   // PluginManager 상태 변경 리스너 등록 → 모든 포트로 broadcast
   pluginManager.addListener((newState) => {
@@ -109,9 +133,11 @@ export default defineBackground(async () => {
     new StartNetworkThrottleCommand(),
     new StopNetworkThrottleCommand(),
 
-    // HLS Downloader (2개)
+    // HLS Downloader (4개)
+    new GetM3u8ListCommand(),
     new GetSegmentUrlListCommand(),
     new DownloadSegmentCommand(),
+    new DownloadHLSCommand(),
   ]);
 
   console.log(`📦 ${commandRegistry.getCount()} commands registered`);

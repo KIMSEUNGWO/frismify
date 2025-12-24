@@ -100,8 +100,8 @@ onMounted(async () => {
     type: MessageType.GET_M3U8_LIST,
   });
 
-  if (response.success) {
-    m3u8List.value = response.data;
+  if (response.m3u8List) {
+    m3u8List.value = response.m3u8List;
   }
 
   // Initialize converters

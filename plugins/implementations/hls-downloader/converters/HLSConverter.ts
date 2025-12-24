@@ -62,7 +62,7 @@ export class HLSConverter implements VideoConverter {
 
       onProgress?.({
         status: 'Validating segments...',
-        percent: 10,
+        percent: 0,
         details: `Found ${segmentUrlList.length} segments`,
       });
 
